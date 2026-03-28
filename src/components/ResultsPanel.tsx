@@ -7,13 +7,14 @@ interface Props {
   summary: string;
   error: string;
   searchParams: SearchParams;
+  flexLoading?: boolean;
   onBack: () => void;
   onBook: (result: FlightResult, trip: Trip) => void;
 }
 
 type SortKey = 'miles' | 'taxes' | 'total' | 'value';
 
-export default function ResultsPanel({ results, summary, error, searchParams, onBack, onBook }: Props) {
+export default function ResultsPanel({ results, summary, error, searchParams, flexLoading, onBack, onBook }: Props) {
   const [sort, setSort] = useState<SortKey>('miles');
   const [directOnly, setDirectOnly] = useState(false);
 
@@ -106,6 +107,14 @@ export default function ResultsPanel({ results, summary, error, searchParams, on
           {filtered.map((r, i) => (
             <FlightCard key={`${r.program}-${r.date}-${i}`} result={r} onBook={onBook} />
           ))}
+        </div>
+      )}
+
+      {/* Flex date loading indicator */}
+      {flexLoading && (
+        <div className="flex items-center gap-3 text-sm text-[#aaaaaa] py-2 px-1">
+          <span className="animate-spin inline-block w-4 h-4 border-2 border-[#cccccc] border-t-[#aaaaaa] rounded-full shrink-0" />
+          Looking for better deals nearby dates…
         </div>
       )}
     </div>

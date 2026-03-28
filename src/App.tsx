@@ -18,6 +18,7 @@ export default function App() {
   const [page, setPage] = useState<Page>('Search');
   const [view, setView] = useState<View>('search');
   const [loading, setLoading] = useState(false);
+  const [flexLoading, setFlexLoading] = useState(false);
   const [results, setResults] = useState<FlightResult[]>([]);
   const [summary, setSummary] = useState('');
   const [error, setError] = useState('');
@@ -26,20 +27,23 @@ export default function App() {
 
   const handleSearch = async (params: SearchParams) => {
     setLoading(true);
+    setFlexLoading(false);
     setSearchParams(params);
     setError('');
+
+    const body = {
+      origin: params.from,
+      destination: params.to,
+      date_from: params.date,
+      date_to: params.date,
+      cabin: params.cabin === 'any' ? undefined : params.cabin,
+    };
 
     try {
       const res = await fetch(`${API_BASE}/api/search`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          origin: params.from,
-          destination: params.to,
-          date_from: params.date,
-          date_to: params.date,
-          cabin: params.cabin === 'any' ? undefined : params.cabin,
-        }),
+        body: JSON.stringify(body),
       });
 
       if (!res.ok) throw new Error(`Server error: ${res.status}`);
@@ -48,6 +52,28 @@ export default function App() {
       setResults(data.results);
       setSummary(data.summary);
       setView('results');
+      setLoading(false);
+
+      // Phase 2: silently search ±3 days for better deals
+      const minMiles = data.results.length > 0
+        ? Math.min(...data.results.map(r => r.miles))
+        : 0;
+      if (minMiles > 0) {
+        setFlexLoading(true);
+        fetch(`${API_BASE}/api/search`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...body, flex_only: true, min_miles: Math.floor(minMiles * 0.75) }),
+        })
+          .then(r => r.ok ? r.json() : null)
+          .then((flexData: SearchResponse | null) => {
+            if (flexData?.results?.length) {
+              setResults(prev => [...prev, ...flexData.results]);
+            }
+          })
+          .catch(() => {/* best-effort */})
+          .finally(() => setFlexLoading(false));
+      }
     } catch (err) {
       setError(
         err instanceof Error && err.message.startsWith('Server error')
@@ -55,7 +81,6 @@ export default function App() {
           : 'Could not reach the flight server. Run: python3 ~/.openclaw/workspace/flight_api/server.py'
       );
       setView('results');
-    } finally {
       setLoading(false);
     }
   };
@@ -97,7 +122,8 @@ export default function App() {
                 summary={summary}
                 error={error}
                 searchParams={searchParams!}
-                onBack={() => setView('search')}
+                flexLoading={flexLoading}
+                onBack={() => { setView('search'); setFlexLoading(false); }}
                 onBook={(result, trip) => setBooking({ result, trip })}
               />
             )}
