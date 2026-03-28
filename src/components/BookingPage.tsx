@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 import type { FlightResult, Trip } from '../types';
@@ -154,10 +154,9 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 const inputCls = "px-3 py-2.5 border border-[#e0e0e0] rounded-lg text-sm text-[#444444] bg-white focus:outline-none focus:border-[#aaaaaa] transition";
 
 // ── Inner form (uses stripe hooks) ───────────────────────────────────────────
-function CheckoutForm({ breakdown, result, onBack }: {
+function CheckoutForm({ breakdown, result }: {
   breakdown: Breakdown;
   result: FlightResult;
-  onBack: () => void;
 }) {
   const [firstName, setFirstName]   = useState('');
   const [lastName, setLastName]     = useState('');
@@ -168,39 +167,46 @@ function CheckoutForm({ breakdown, result, onBack }: {
   const [nationality, setNationality] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess]       = useState(false);
+  const partialSentRef              = useRef(false);
 
-  const notifyAppa = (name: string) => {
+  const pingAppa = (text: string) => {
     fetch('http://localhost:18789/hooks/wake', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer flightdash-hook-token-2026',
       },
-      body: JSON.stringify({
-        text: `New booking: ${name}, ${result.origin}→${result.destination} ${result.date} (${result.cabin}) · ${result.miles.toLocaleString()} miles + $${result.taxes_usd.toFixed(2)} · Total $${(breakdown.total_cents / 100).toFixed(2)} · passport: ${passport || 'N/A'} · nationality: ${nationality || 'N/A'} · dob: ${dob || 'N/A'} · phone: ${phone || 'N/A'} · email: ${email || 'N/A'}`,
-      }),
+      body: JSON.stringify({ text }),
     }).catch(() => {/* best-effort */});
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Silent early ping once name + dob + phone are all filled
+  useEffect(() => {
+    if (partialSentRef.current) return;
+    if (firstName && lastName && dob && phone) {
+      partialSentRef.current = true;
+      pingAppa(`[Lead] ${firstName} ${lastName} · DOB: ${dob} · Phone: ${phone} — filling out ${result.origin}→${result.destination} ${result.date} (${result.cabin})`);
+    }
+  }, [firstName, lastName, dob, phone]);
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    notifyAppa(`${firstName} ${lastName}`);
+    pingAppa(`[Booking] ${firstName} ${lastName} · ${result.origin}→${result.destination} ${result.date} (${result.cabin}) · ${result.miles.toLocaleString()} miles + $${result.taxes_usd.toFixed(2)} · Total $${(breakdown.total_cents / 100).toFixed(2)} · DOB: ${dob} · Phone: ${phone} · Email: ${email || 'N/A'} · Passport: ${passport || 'N/A'} · Nationality: ${nationality || 'N/A'}`);
     setSuccess(true);
     setSubmitting(false);
   };
 
   if (success) {
     return (
-      <div className="bg-white rounded-2xl border border-[#dddddd] p-10 text-center flex flex-col gap-4">
-        <div className="text-4xl">✅</div>
-        <div className="text-xl font-bold text-[#444444]">Booking Confirmed</div>
-        <p className="text-sm text-[#aaaaaa]">
-          We'll email confirmation to <strong>{email}</strong> and begin sourcing your miles.
+      <div className="bg-white rounded-2xl border border-[#dddddd] p-10 text-center flex flex-col gap-5">
+        <div className="flex justify-center">
+          <span className="animate-spin w-10 h-10 border-4 border-[#dddddd] border-t-[#aaaaaa] rounded-full" />
+        </div>
+        <div className="text-xl font-bold text-[#444444]">Processing Your Ticket</div>
+        <p className="text-sm text-[#aaaaaa] max-w-xs mx-auto">
+          We're sourcing your miles and confirming availability. Please check back in a few minutes — we'll email you at <strong>{email}</strong> once it's confirmed.
         </p>
-        <button onClick={onBack} className="mt-4 text-sm text-[#aaaaaa] hover:text-[#777777] transition">
-          ← Back to search
-        </button>
       </div>
     );
   }
@@ -358,7 +364,7 @@ export default function BookingPage({ result, trip, onBack }: Props) {
             },
           }}
         >
-          <CheckoutForm breakdown={breakdown} result={result} onBack={onBack} />
+          <CheckoutForm breakdown={breakdown} result={result} />
         </Elements>
       )}
     </div>
