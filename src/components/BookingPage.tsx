@@ -316,8 +316,6 @@ export default function BookingPage({ result, trip, onBack }: Props) {
           <span className={trip.stops === 0 ? 'text-[#4a7a4a] font-semibold' : ''}>
             {trip.stops === 0 ? 'Nonstop' : `${trip.stops} stop${trip.stops > 1 ? 's' : ''}`}
           </span>
-          <span>·</span>
-          <span>{result.miles.toLocaleString()} miles + ${result.taxes_usd.toFixed(2)} taxes</span>
         </div>
 
         <div className="border-t border-[#f0f0f0] pt-4">
@@ -325,20 +323,8 @@ export default function BookingPage({ result, trip, onBack }: Props) {
         </div>
 
         {breakdown && (
-          <div className="border-t border-[#f0f0f0] pt-4 flex flex-col gap-2">
-            <div className="flex justify-between text-sm text-[#777777]">
-              <span>Miles cost ({result.miles.toLocaleString()} pts)</span>
-              <span>${(breakdown.miles_cost_cents / 100).toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between text-sm text-[#777777]">
-              <span>Taxes &amp; carrier fees</span>
-              <span>${(breakdown.taxes_cents / 100).toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between text-sm text-[#777777]">
-              <span>Service fee</span>
-              <span>${(breakdown.service_fee_cents / 100).toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between font-bold text-[#444444] text-base border-t border-[#f0f0f0] pt-2 mt-1">
+          <div className="border-t border-[#f0f0f0] pt-4">
+            <div className="flex justify-between font-bold text-[#444444] text-base">
               <span>Total charged today</span>
               <span>${(breakdown.total_cents / 100).toFixed(2)}</span>
             </div>
