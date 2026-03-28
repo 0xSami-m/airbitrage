@@ -154,18 +154,37 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 const inputCls = "px-3 py-2.5 border border-[#e0e0e0] rounded-lg text-sm text-[#444444] bg-white focus:outline-none focus:border-[#aaaaaa] transition";
 
 // ── Inner form (uses stripe hooks) ───────────────────────────────────────────
-function CheckoutForm({ breakdown, onBack }: { breakdown: Breakdown; onBack: () => void }) {
+function CheckoutForm({ breakdown, result, onBack }: {
+  breakdown: Breakdown;
+  result: FlightResult;
+  onBack: () => void;
+}) {
   const stripe = useStripe();
   const elements = useElements();
 
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName]   = useState('');
-  const [dob, setDob]             = useState('');
-  const [email, setEmail]         = useState('');
-  const [phone, setPhone]         = useState('');
+  const [firstName, setFirstName]   = useState('');
+  const [lastName, setLastName]     = useState('');
+  const [dob, setDob]               = useState('');
+  const [email, setEmail]           = useState('');
+  const [phone, setPhone]           = useState('');
+  const [passport, setPassport]     = useState('');
+  const [nationality, setNationality] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError]         = useState('');
-  const [success, setSuccess]     = useState(false);
+  const [error, setError]           = useState('');
+  const [success, setSuccess]       = useState(false);
+
+  const notifyAppa = (name: string) => {
+    fetch('http://localhost:18789/hooks/wake', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer flightdash-hook-token-2026',
+      },
+      body: JSON.stringify({
+        text: `New booking: ${name}, ${result.origin}→${result.destination} ${result.date} (${result.cabin}) · ${result.miles.toLocaleString()} miles + $${result.taxes_usd.toFixed(2)} · Total $${(breakdown.total_cents / 100).toFixed(2)}`,
+      }),
+    }).catch(() => {/* best-effort — don't block the UI */});
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -188,6 +207,7 @@ function CheckoutForm({ breakdown, onBack }: { breakdown: Breakdown; onBack: () 
       setError(stripeErr.message ?? 'Payment failed. Please try again.');
       setSubmitting(false);
     } else {
+      notifyAppa(`${firstName} ${lastName}`);
       setSuccess(true);
       setSubmitting(false);
     }
@@ -229,6 +249,14 @@ function CheckoutForm({ breakdown, onBack }: { breakdown: Breakdown; onBack: () 
           <Field label="Phone">
             <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
               required className={inputCls} placeholder="+1 555 000 0000" />
+          </Field>
+          <Field label="Passport Number">
+            <input value={passport} onChange={e => setPassport(e.target.value)}
+              required className={inputCls} placeholder="AB123456" />
+          </Field>
+          <Field label="Nationality">
+            <input value={nationality} onChange={e => setNationality(e.target.value)}
+              required className={inputCls} placeholder="US" />
           </Field>
           <div className="col-span-2">
             <Field label="Email">
@@ -363,7 +391,7 @@ export default function BookingPage({ result, trip, onBack }: Props) {
             },
           }}
         >
-          <CheckoutForm breakdown={breakdown} onBack={onBack} />
+          <CheckoutForm breakdown={breakdown} result={result} onBack={onBack} />
         </Elements>
       )}
     </div>
