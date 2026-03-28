@@ -1,10 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { loadStripe } from '@stripe/stripe-js';
-import { Elements } from '@stripe/react-stripe-js';
 import type { FlightResult, Trip } from '../types';
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8787';
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 interface Props {
   result: FlightResult;
@@ -170,12 +167,9 @@ function CheckoutForm({ breakdown, result }: {
   const partialSentRef              = useRef(false);
 
   const pingAppa = (text: string) => {
-    fetch('http://localhost:18789/hooks/wake', {
+    fetch(`${API_BASE}/api/notify-booking`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer flightdash-hook-token-2026',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text }),
     }).catch(() => {/* best-effort */});
   };
@@ -263,30 +257,12 @@ function CheckoutForm({ breakdown, result }: {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function BookingPage({ result, trip, onBack }: Props) {
-  const [clientSecret, setClientSecret] = useState('');
-  const [breakdown, setBreakdown]       = useState<Breakdown | null>(null);
-  const [loading, setLoading]           = useState(true);
-  const [error, setError]               = useState('');
-
-  useEffect(() => {
-    fetch(`${API_BASE}/api/create-payment-intent`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        miles:           result.miles,
-        taxes_usd:       result.taxes_usd,
-        origin:          result.origin,
-        destination:     result.destination,
-        date:            result.date,
-        cabin:           result.cabin,
-        availability_id: result.availability_id,
-      }),
-    })
-      .then(r => r.json())
-      .then(data => { setClientSecret(data.client_secret); setBreakdown(data.breakdown); })
-      .catch(() => setError('Could not initialize payment. Please try again.'))
-      .finally(() => setLoading(false));
-  }, []);
+  const breakdown: Breakdown = {
+    miles_cost_cents:  Math.round(result.arb_miles_cost_usd * 100),
+    taxes_cents:       Math.round(result.taxes_usd * 100),
+    service_fee_cents: 0,
+    total_cents:       Math.round(result.arb_price_usd * 100),
+  };
 
   return (
     <div className="w-full max-w-2xl mx-auto px-4 py-10 flex flex-col gap-6">
@@ -322,37 +298,15 @@ export default function BookingPage({ result, trip, onBack }: Props) {
           <FlightTimeline trip={trip} />
         </div>
 
-        {breakdown && (
-          <div className="border-t border-[#f0f0f0] pt-4">
-            <div className="flex justify-between font-bold text-[#444444] text-base">
-              <span>Total charged today</span>
-              <span>${(breakdown.total_cents / 100).toFixed(2)}</span>
-            </div>
+        <div className="border-t border-[#f0f0f0] pt-4">
+          <div className="flex justify-between font-bold text-[#444444] text-base">
+            <span>Total charged today</span>
+            <span>${(breakdown.total_cents / 100).toFixed(2)}</span>
           </div>
-        )}
+        </div>
       </div>
 
-      {loading && (
-        <div className="flex justify-center py-8">
-          <span className="animate-spin w-6 h-6 border-2 border-[#dddddd] border-t-[#aaaaaa] rounded-full" />
-        </div>
-      )}
-      {error && <p className="text-sm text-red-500 text-center">{error}</p>}
-
-      {clientSecret && breakdown && (
-        <Elements
-          stripe={stripePromise}
-          options={{
-            clientSecret,
-            appearance: {
-              theme: 'stripe',
-              variables: { colorPrimary: '#555555', borderRadius: '10px' },
-            },
-          }}
-        >
-          <CheckoutForm breakdown={breakdown} result={result} />
-        </Elements>
-      )}
+      <CheckoutForm breakdown={breakdown} result={result} />
     </div>
   );
 }
