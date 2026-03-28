@@ -40,17 +40,22 @@ export default function App() {
     };
 
     try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 45000);
+
       const res = await fetch(`${API_BASE}/api/search`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
+        signal: controller.signal,
       });
+      clearTimeout(timer);
 
       if (!res.ok) throw new Error(`Server error: ${res.status}`);
 
       const data: SearchResponse = await res.json();
-      setResults(data.results);
-      setSummary(data.summary);
+      setResults(Array.isArray(data.results) ? data.results : []);
+      setSummary(data.summary ?? '');
       setView('results');
       setLoading(false);
 
@@ -75,10 +80,11 @@ export default function App() {
           .finally(() => setFlexLoading(false));
       }
     } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
       setError(
-        err instanceof Error && err.message.startsWith('Server error')
-          ? err.message
-          : 'Could not reach the flight server. Run: python3 ~/.openclaw/workspace/flight_api/server.py'
+        msg.startsWith('Server error') ? msg :
+        msg.includes('abort') || msg.includes('AbortError') ? 'Search timed out — the server took too long. Please try again.' :
+        'Could not reach the flight server.'
       );
       setView('results');
       setLoading(false);
