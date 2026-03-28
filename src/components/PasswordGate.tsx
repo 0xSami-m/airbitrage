@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 const STORAGE_KEY = 'airb_auth';
-const GATE_KEY = import.meta.env.VITE_GATE_KEY as string;
+const GATE_KEY = (import.meta.env.VITE_GATE_KEY as string)?.trim();
 
 function isUnlocked() {
   return localStorage.getItem(STORAGE_KEY) === GATE_KEY;
