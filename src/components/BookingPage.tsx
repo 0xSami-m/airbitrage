@@ -205,7 +205,7 @@ function CheckoutForm({ breakdown, result }: {
         </div>
         <div className="text-xl font-bold text-[#444444]">Processing Your Ticket</div>
         <p className="text-sm text-[#aaaaaa] max-w-xs mx-auto">
-          We're sourcing your miles and confirming availability. Please check back in a few minutes — we'll email you at <strong>{email}</strong> once it's confirmed.
+          Please check back in a few minutes — we'll email you at <strong>{email}</strong> once it's confirmed.
         </p>
       </div>
     );
