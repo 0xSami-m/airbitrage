@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
-import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { Elements } from '@stripe/react-stripe-js';
 import type { FlightResult, Trip } from '../types';
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8787';
@@ -159,9 +159,6 @@ function CheckoutForm({ breakdown, result, onBack }: {
   result: FlightResult;
   onBack: () => void;
 }) {
-  const stripe = useStripe();
-  const elements = useElements();
-
   const [firstName, setFirstName]   = useState('');
   const [lastName, setLastName]     = useState('');
   const [dob, setDob]               = useState('');
@@ -170,7 +167,6 @@ function CheckoutForm({ breakdown, result, onBack }: {
   const [passport, setPassport]     = useState('');
   const [nationality, setNationality] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError]           = useState('');
   const [success, setSuccess]       = useState(false);
 
   const notifyAppa = (name: string) => {
@@ -181,36 +177,17 @@ function CheckoutForm({ breakdown, result, onBack }: {
         'Authorization': 'Bearer flightdash-hook-token-2026',
       },
       body: JSON.stringify({
-        text: `New booking: ${name}, ${result.origin}→${result.destination} ${result.date} (${result.cabin}) · ${result.miles.toLocaleString()} miles + $${result.taxes_usd.toFixed(2)} · Total $${(breakdown.total_cents / 100).toFixed(2)}`,
+        text: `New booking: ${name}, ${result.origin}→${result.destination} ${result.date} (${result.cabin}) · ${result.miles.toLocaleString()} miles + $${result.taxes_usd.toFixed(2)} · Total $${(breakdown.total_cents / 100).toFixed(2)} · passport: ${passport || 'N/A'} · nationality: ${nationality || 'N/A'} · dob: ${dob || 'N/A'} · phone: ${phone || 'N/A'} · email: ${email || 'N/A'}`,
       }),
-    }).catch(() => {/* best-effort — don't block the UI */});
+    }).catch(() => {/* best-effort */});
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!stripe || !elements) return;
     setSubmitting(true);
-    setError('');
-
-    const { error: stripeErr } = await stripe.confirmPayment({
-      elements,
-      confirmParams: {
-        return_url: `${window.location.origin}/booking-success`,
-        payment_method_data: {
-          billing_details: { name: `${firstName} ${lastName}`, email, phone },
-        },
-      },
-      redirect: 'if_required',
-    });
-
-    if (stripeErr) {
-      setError(stripeErr.message ?? 'Payment failed. Please try again.');
-      setSubmitting(false);
-    } else {
-      notifyAppa(`${firstName} ${lastName}`);
-      setSuccess(true);
-      setSubmitting(false);
-    }
+    notifyAppa(`${firstName} ${lastName}`);
+    setSuccess(true);
+    setSubmitting(false);
   };
 
   if (success) {
@@ -267,22 +244,12 @@ function CheckoutForm({ breakdown, result, onBack }: {
         </div>
       </div>
 
-      {/* Payment */}
-      <div className="bg-white rounded-2xl border border-[#dddddd] p-6 flex flex-col gap-4">
-        <h3 className="font-semibold text-[#444444]">Payment</h3>
-        <PaymentElement />
-      </div>
-
-      {error && <p className="text-sm text-red-500 px-1">{error}</p>}
-
       <button
         type="submit"
-        disabled={submitting || !stripe || !elements}
+        disabled={submitting}
         className="w-full py-4 bg-[#555555] hover:bg-[#444444] disabled:opacity-50 text-white font-bold rounded-xl text-base transition"
       >
-        {submitting
-          ? 'Processing...'
-          : `Finalize Booking · $${(breakdown.total_cents / 100).toFixed(2)}`}
+        {submitting ? 'Processing...' : `Finalize Booking · $${(breakdown.total_cents / 100).toFixed(2)}`}
       </button>
     </form>
   );
