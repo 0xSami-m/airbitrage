@@ -7,7 +7,8 @@ import DiscoverPage, { DiscoverRows } from './components/DiscoverPage';
 import AIAgentPage from './components/AIAgentPage';
 import DashboardPage from './components/DashboardPage';
 import DevPage from './components/DevPage';
-import type { FlightResult, SearchParams, SearchResponse } from './types';
+import BookingPage from './components/BookingPage';
+import type { FlightResult, SearchParams, SearchResponse, Trip } from './types';
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8787';
 
@@ -21,6 +22,7 @@ export default function App() {
   const [summary, setSummary] = useState('');
   const [error, setError] = useState('');
   const [searchParams, setSearchParams] = useState<SearchParams | null>(null);
+  const [booking, setBooking] = useState<{ result: FlightResult; trip: Trip } | null>(null);
 
   const handleSearch = async (params: SearchParams) => {
     setLoading(true);
@@ -61,6 +63,17 @@ export default function App() {
   const renderPage = () => {
     switch (page) {
       case 'Search':
+        if (booking) {
+          return (
+            <div className="flex flex-col items-center px-4 py-12 gap-8 w-full">
+              <BookingPage
+                result={booking.result}
+                trip={booking.trip}
+                onBack={() => setBooking(null)}
+              />
+            </div>
+          );
+        }
         return (
           <div className="flex flex-col items-center px-4 py-12 gap-8 w-full">
             <div className="text-center">
@@ -85,6 +98,7 @@ export default function App() {
                 error={error}
                 searchParams={searchParams!}
                 onBack={() => setView('search')}
+                onBook={(result, trip) => setBooking({ result, trip })}
               />
             )}
           </div>

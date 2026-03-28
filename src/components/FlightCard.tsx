@@ -7,6 +7,7 @@ const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8787';
 interface Props {
   result: FlightResult;
   mockTrips?: Trip[];
+  onBook?: (result: FlightResult, trip: Trip) => void;
 }
 
 const CABIN_COLORS: Record<string, string> = {
@@ -247,12 +248,13 @@ function TripRow({ trip }: { trip: Trip }) {
   );
 }
 
-export default function FlightCard({ result, mockTrips }: Props) {
+export default function FlightCard({ result, mockTrips, onBook }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [allOpen, setAllOpen] = useState(false);
   const [trips, setTrips] = useState<Trip[] | null>(null);
   const [tripsLoading, setTripsLoading] = useState(false);
   const [tripsError, setTripsError] = useState('');
+  const [bookLoading, setBookLoading] = useState(false);
 
   const cabinColor = CABIN_COLORS[result.cabin] ?? 'bg-[#f5f5f5] text-[#888888]';
   const cabinLabel = CABIN_LABELS[result.cabin] ?? result.cabin;
@@ -300,7 +302,34 @@ export default function FlightCard({ result, mockTrips }: Props) {
     }
   };
 
-  const bmi = result.buy_miles_info;
+  const handleBook = async () => {
+    if (!onBook) return;
+    if (trips && trips.length > 0) { onBook(result, trips[0]); return; }
+    setBookLoading(true);
+    try {
+      const primaryCarrier = result.airlines.split(/[,\s]+/)[0];
+      const fetchTrips = async (withCarrier: boolean) => {
+        const params = new URLSearchParams();
+        if (result.direct) params.set('direct_only', 'true');
+        if (withCarrier && primaryCarrier) params.set('carriers', primaryCarrier);
+        const res = await fetch(`${API_BASE}/api/trips/${result.availability_id}?${params}`);
+        if (!res.ok) throw new Error(`${res.status}`);
+        return res.json() as Promise<TripsResponse>;
+      };
+      let data = await fetchTrips(true);
+      if (data.trips.length === 0 && primaryCarrier) data = await fetchTrips(false);
+      const seen = new Set<string>();
+      const deduped = data.trips.filter(t => {
+        const key = `${t.flight_numbers}|${t.departs_at}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      if (mockTrips) { setTrips(mockTrips); onBook(result, mockTrips[0]); }
+      else if (deduped.length > 0) { setTrips(deduped); onBook(result, deduped[0]); }
+    } catch { /* ignore */ }
+    setBookLoading(false);
+  };
 
   return (
     <div className="bg-white rounded-2xl shadow-sm hover:shadow-md transition border border-[#dddddd] overflow-hidden">
@@ -395,15 +424,14 @@ export default function FlightCard({ result, mockTrips }: Props) {
               Only {result.remaining_seats} left!
             </div>
           )}
-          {bmi?.buy_url && (
-            <a
-              href={bmi.buy_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="bg-[#aaaaaa] hover:bg-[#999999] text-white font-semibold px-5 py-2 rounded-lg text-sm transition"
+          {onBook && (
+            <button
+              onClick={handleBook}
+              disabled={bookLoading}
+              className="bg-[#555555] hover:bg-[#444444] disabled:opacity-50 text-white font-semibold px-5 py-2 rounded-lg text-sm transition"
             >
-              Buy Miles
-            </a>
+              {bookLoading ? 'Loading...' : 'Book'}
+            </button>
           )}
         </div>
       </div>

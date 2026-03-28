@@ -1,4 +1,4 @@
-import type { FlightResult, SearchParams } from '../types';
+import type { FlightResult, SearchParams, Trip } from '../types';
 import FlightCard from './FlightCard';
 import { useState } from 'react';
 
@@ -8,11 +8,12 @@ interface Props {
   error: string;
   searchParams: SearchParams;
   onBack: () => void;
+  onBook: (result: FlightResult, trip: Trip) => void;
 }
 
 type SortKey = 'miles' | 'taxes' | 'total' | 'value';
 
-export default function ResultsPanel({ results, summary, error, searchParams, onBack }: Props) {
+export default function ResultsPanel({ results, summary, error, searchParams, onBack, onBook }: Props) {
   const [sort, setSort] = useState<SortKey>('miles');
   const [directOnly, setDirectOnly] = useState(false);
 
@@ -103,7 +104,7 @@ export default function ResultsPanel({ results, summary, error, searchParams, on
       {!error && filtered.length > 0 && (
         <div className="flex flex-col gap-4">
           {filtered.map((r, i) => (
-            <FlightCard key={`${r.program}-${r.date}-${i}`} result={r} />
+            <FlightCard key={`${r.program}-${r.date}-${i}`} result={r} onBook={onBook} />
           ))}
         </div>
       )}
