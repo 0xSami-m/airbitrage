@@ -41,7 +41,7 @@ export interface FlightResult {
   cash_price_usd: number | null;
   cash_price_source: string;
   savings_usd: number | null;
-  value_ratio: number;
+  value_ratio: number | null;
   google_flights_url: string;
   airlines: string;
   direct: boolean;

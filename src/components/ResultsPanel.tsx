@@ -23,7 +23,7 @@ export default function ResultsPanel({ results, summary, error, searchParams, fl
     .sort((a, b) => {
       if (sort === 'miles') return a.miles - b.miles;
       if (sort === 'taxes') return a.taxes_usd - b.taxes_usd;
-      if (sort === 'value') return b.value_ratio - a.value_ratio;
+      if (sort === 'value') return (b.value_ratio ?? 0) - (a.value_ratio ?? 0);
       return a.arb_price_usd - b.arb_price_usd;
     });
 

@@ -129,7 +129,8 @@ function Logo({ src, alt, size, initials }: LogoProps) {
   );
 }
 
-function ValueBadge({ ratio }: { ratio: number }) {
+function ValueBadge({ ratio }: { ratio: number | null }) {
+  if (ratio == null) return null;
   const color =
     ratio >= 2.5 ? 'bg-[#d4ead4] text-[#4a7a4a]' :
     ratio >= 1.5 ? 'bg-[#eeeae4] text-[#666666]' :
