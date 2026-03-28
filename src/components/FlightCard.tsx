@@ -372,6 +372,11 @@ export default function FlightCard({ result, mockTrips, onBook }: Props) {
             )}
           </div>
           <div className="flex items-center gap-2">
+            {result.alt_date && (
+              <span className="text-xs font-semibold px-3 py-1 rounded-full bg-[#fff3cd] text-[#856404]">
+                {formatDate(result.date)} ✦ flex date
+              </span>
+            )}
             <ValueBadge ratio={result.value_ratio} />
             <span className={`text-xs font-semibold px-3 py-1 rounded-full ${cabinColor}`}>
               {cabinLabel}

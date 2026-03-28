@@ -47,6 +47,7 @@ export interface FlightResult {
   direct: boolean;
   remaining_seats: number;
   buy_miles_info: BuyMilesInfo | null;
+  alt_date?: boolean;
 }
 
 export interface DiscoverTile {
