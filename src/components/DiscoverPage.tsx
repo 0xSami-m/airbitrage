@@ -33,10 +33,10 @@ function parseCodes(airlines: string | string[] | null | undefined): string[] {
 }
 
 const CABIN_BADGE: Record<string, string> = {
-  first:    'bg-[#b8973a] text-white font-bold px-2 py-0.5 rounded text-xs',
-  business: 'bg-[#666666] text-white font-semibold px-2 py-0.5 rounded text-xs',
-  premium:  'bg-[#999999] text-white px-2 py-0.5 rounded text-xs',
-  economy:  'text-[#aaaaaa] text-xs',
+  first:    'bg-[#F5C842] text-[#1A1A1A] font-bold px-2.5 py-0.5 rounded-full text-xs',
+  business: 'bg-[#333333] text-white font-semibold px-2.5 py-0.5 rounded-full text-xs',
+  premium:  'bg-[#888888] text-white px-2.5 py-0.5 rounded-full text-xs',
+  economy:  'text-[#AAAAAA] text-xs',
 };
 
 // Common connecting-airport city names for expanded timeline display
@@ -251,7 +251,7 @@ function Row({ tile }: { tile: DiscoverTile }) {
   };
 
   return (
-    <div className={`bg-white rounded-xl border border-[#dddddd] overflow-hidden transition hover:shadow-sm ${dimmed ? 'opacity-50' : ''}`}>
+    <div className={`bg-white rounded-2xl border border-[#D4D0CB] overflow-hidden transition hover:shadow-md ${dimmed ? 'opacity-50' : ''}`}>
 
       {/* ── Main row ── */}
       <div className="flex items-center gap-4 px-5 py-4">
@@ -274,16 +274,16 @@ function Row({ tile }: { tile: DiscoverTile }) {
 
         {/* Route — fixed width */}
         <div className="w-[200px] shrink-0">
-          <div className="flex items-center gap-1.5 text-base font-bold text-[#444444]">
+          <div className="flex items-center gap-1.5 text-base font-bold text-[#1A1A1A]">
             <span>{normalizeCity(tile.origin_city, tile.origin_code)}</span>
-            <span className="text-[#cccccc] text-xs font-normal">→</span>
+            <span className="text-[#AAAAAA] text-xs font-normal">→</span>
             <span>{normalizeCity(tile.destination_city, tile.destination_code)}</span>
           </div>
         </div>
 
         {/* Region — fixed width */}
         <div className="w-[90px] shrink-0">
-          <span className="hidden sm:inline-block text-xs bg-[#f5f5f5] text-[#888888] px-2 py-0.5 rounded-full font-medium">
+          <span className="hidden sm:inline-block text-xs bg-[#EEEEEE] text-[#666666] px-2.5 py-0.5 rounded-full font-medium border border-[#D4D0CB]">
             {tile.region}
           </span>
         </div>
@@ -308,17 +308,16 @@ function Row({ tile }: { tile: DiscoverTile }) {
         <div className="flex flex-col items-end shrink-0 w-[110px]">
           {promoCost != null && promoCost > 0 ? (
             <div className="flex items-baseline gap-1">
-              <span className="text-base font-bold text-[#4a7a4a]">${formatUSD(promoCost)}</span>
-              <span className="text-xs text-[#4a7a4a]">promo</span>
+              <span className="font-hand font-bold text-xl text-[#3DB551]">${formatUSD(promoCost)}</span>
             </div>
           ) : (
             <div className="flex items-baseline gap-1">
-              <span className="text-base font-bold text-[#555555]">{formatMiles(tile.miles)}</span>
-              <span className="text-xs text-[#aaaaaa]">mi</span>
+              <span className="font-hand font-bold text-xl text-[#3DB551]">{formatMiles(tile.miles)}</span>
+              <span className="text-xs text-[#AAAAAA]">mi</span>
             </div>
           )}
           {tile.savings_usd > 0 && (
-            <div className="text-xs text-[#4a7a4a] font-medium">Save ~${formatUSD(tile.savings_usd)}</div>
+            <div className="text-xs text-[#3DB551] font-medium">Save ~${formatUSD(tile.savings_usd)}</div>
           )}
         </div>
 
@@ -326,9 +325,9 @@ function Row({ tile }: { tile: DiscoverTile }) {
         <div className="shrink-0">
           <button
             onClick={() => setExpanded(v => !v)}
-            className="text-xs text-[#aaaaaa] hover:text-[#777777] border border-[#eeeeee] hover:border-[#cccccc] rounded-lg px-3 py-1.5 transition"
+            className="w-7 h-7 rounded-full border border-[#D4D0CB] flex items-center justify-center text-[#888888] hover:border-[#999999] hover:text-[#444444] transition"
           >
-            {expanded ? 'Collapse ↑' : 'Expand ↓'}
+            <span className={`text-sm transition-transform ${expanded ? 'rotate-180' : ''}`}>∨</span>
           </button>
         </div>
       </div>
@@ -383,19 +382,19 @@ export function DiscoverRows() {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h2 className="text-xl font-bold text-[#444444]">Our Best Finds</h2>
-        <p className="text-sm text-[#aaaaaa] mt-1">Live availability across all programs</p>
+        <h2 className="font-hand font-bold text-3xl text-[#1A1A1A]">Our best finds ✨</h2>
+        <p className="text-sm text-[#888888] mt-1">Live deals across all routes.</p>
       </div>
 
       {loading && (
-        <div className="flex items-center gap-2 text-sm text-[#aaaaaa] py-4">
-          <span className="animate-spin inline-block w-4 h-4 border-2 border-[#cccccc] border-t-transparent rounded-full" />
+        <div className="flex items-center gap-2 text-sm text-[#AAAAAA] py-4">
+          <span className="animate-spin inline-block w-4 h-4 border-2 border-[#CCCCCC] border-t-transparent rounded-full" />
           Loading destinations...
         </div>
       )}
 
       {error && (
-        <div className="bg-white border border-[#dddddd] text-[#888888] rounded-xl px-5 py-4 text-sm">
+        <div className="bg-white border border-[#D4D0CB] text-[#888888] rounded-2xl px-5 py-4 text-sm">
           {error}
         </div>
       )}

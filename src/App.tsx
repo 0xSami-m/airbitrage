@@ -3,7 +3,7 @@ import './index.css';
 import Nav, { type Page } from './components/Nav';
 import SearchForm from './components/SearchForm';
 import ResultsPanel from './components/ResultsPanel';
-import DiscoverPage, { DiscoverRows } from './components/DiscoverPage';
+import { DiscoverRows } from './components/DiscoverPage';
 import AIAgentPage from './components/AIAgentPage';
 import DashboardPage from './components/DashboardPage';
 import DevPage from './components/DevPage';
@@ -106,19 +106,11 @@ export default function App() {
           );
         }
         return (
-          <div className="flex flex-col items-center px-4 py-12 gap-8 w-full">
-            <div className="text-center">
-              <h1 className="text-4xl font-extrabold text-[#555555] tracking-tight">
-                ✈ A(i)rbitrage
-              </h1>
-              <p className="text-[#aaaaaa] mt-2 text-base">
-                Search the best points &amp; miles redemptions across all programs
-              </p>
-            </div>
+          <div className="flex flex-col items-center px-4 py-10 gap-8 w-full">
             {view === 'search' ? (
               <>
                 <SearchForm onSearch={handleSearch} loading={loading} />
-                <div className="w-full max-w-5xl">
+                <div className="w-full max-w-3xl">
                   <DiscoverRows />
                 </div>
               </>
@@ -135,8 +127,6 @@ export default function App() {
             )}
           </div>
         );
-      case 'Discover':
-        return <DiscoverPage />;
       case 'AI Travel Agent':
         return <AIAgentPage />;
       case 'My Dashboard':
@@ -149,7 +139,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#DFD9D9] flex flex-col">
+    <div className="min-h-screen bg-[#EEEAE4] flex flex-col">
       <Nav current={page} onChange={setPage} />
       {renderPage()}
     </div>
