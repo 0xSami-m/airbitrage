@@ -1,9 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import type { SearchParams, CabinClass } from '../types';
+import { findNearestAirport } from '../utils/nearestAirport';
 
 interface Props {
   onSearch: (params: SearchParams) => void;
   loading: boolean;
+  onOriginDetected?: (code: string) => void;
 }
 
 const CABIN_OPTIONS: { value: CabinClass; label: string }[] = [
@@ -14,7 +16,6 @@ const CABIN_OPTIONS: { value: CabinClass; label: string }[] = [
   { value: 'first',    label: 'First' },
 ];
 
-// code → primary city name
 const CODE_TO_CITY: Record<string, string> = {
   ATL: 'Atlanta', ORD: 'Chicago', DFW: 'Dallas', DEN: 'Denver',
   LAX: 'Los Angeles', JFK: 'New York', EWR: 'Newark', LGA: 'New York',
@@ -33,40 +34,37 @@ const CODE_TO_CITY: Record<string, string> = {
   PRG: 'Prague', BUD: 'Budapest', DUB: 'Dublin', EDI: 'Edinburgh',
   DXB: 'Dubai', AUH: 'Abu Dhabi', DOH: 'Doha', IST: 'Istanbul',
   TLV: 'Tel Aviv', CAI: 'Cairo', NBO: 'Nairobi', JNB: 'Johannesburg',
-  CPT: 'Cape Town', ADD: 'Addis Ababa', LOS: 'Lagos',
+  CPT: 'Cape Town', ADD: 'Addis Ababa',
   SIN: 'Singapore', HKG: 'Hong Kong', NRT: 'Tokyo', HND: 'Tokyo Haneda',
   ICN: 'Seoul', PVG: 'Shanghai', PEK: 'Beijing', BKK: 'Bangkok',
-  KUL: 'Kuala Lumpur', CGK: 'Jakarta', MNL: 'Manila',
-  SYD: 'Sydney', MEL: 'Melbourne', BNE: 'Brisbane', AKL: 'Auckland',
-  DEL: 'Delhi', BOM: 'Mumbai', BLR: 'Bangalore', HYD: 'Hyderabad',
-  CMB: 'Colombo', DAC: 'Dhaka', KHI: 'Karachi', LHE: 'Lahore',
+  KUL: 'Kuala Lumpur', DEL: 'Delhi', BOM: 'Mumbai',
+  SYD: 'Sydney', MEL: 'Melbourne', AKL: 'Auckland',
 };
 
-// All entries: [code, display label] — used for autocomplete
-const ALL_AIRPORTS: { code: string; label: string; search: string }[] =
-  Object.entries(CODE_TO_CITY).map(([code, city]) => ({
-    code,
-    label: `${city} (${code})`,
-    search: `${city} ${code}`.toLowerCase(),
-  }));
+const ALL_AIRPORTS = Object.entries(CODE_TO_CITY).map(([code, city]) => ({
+  code, city,
+  label: `${city} (${code})`,
+  search: `${city} ${code}`.toLowerCase(),
+}));
 
 function resolve(input: string): string {
   const up = input.trim().toUpperCase();
-  // Direct code match
   if (CODE_TO_CITY[up]) return up;
-  // City name match
-  const match = ALL_AIRPORTS.find(a => a.search.includes(input.trim().toLowerCase()));
+  const match = ALL_AIRPORTS.find(a => a.search.startsWith(input.trim().toLowerCase()))
+    ?? ALL_AIRPORTS.find(a => a.search.includes(input.trim().toLowerCase()));
   return match ? match.code : up;
 }
 
 // ── City autocomplete input ────────────────────────────────────────────────────
 function CityInput({
-  label, value, onChange, placeholder,
+  label, value, onChange, onSelect, placeholder, detecting,
 }: {
   label: string;
   value: string;
-  onChange: (display: string) => void;
+  onChange: (v: string) => void;
+  onSelect: () => void;
   placeholder: string;
+  detecting?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -84,28 +82,32 @@ function CityInput({
   }, []);
 
   return (
-    <div ref={ref} className="relative flex-1 px-6 py-4 flex flex-col justify-center">
+    <div ref={ref} className="relative flex-1 px-6 py-4 flex flex-col justify-center min-w-0">
       <label className="text-[10px] uppercase tracking-widest text-[#AAAAAA] font-medium mb-1">{label}</label>
       <input
         type="text"
         value={value}
         onChange={e => { onChange(e.target.value); setOpen(true); }}
         onFocus={() => setOpen(true)}
-        placeholder={placeholder}
+        placeholder={detecting ? 'Detecting…' : placeholder}
         required
         autoComplete="off"
-        className="font-hand text-4xl font-bold text-[#1A1A1A] bg-transparent outline-none placeholder:text-[#CCCCCC] w-full"
+        className="font-hand text-4xl font-bold text-[#1A1A1A] bg-transparent outline-none placeholder:text-[#CCCCCC] w-full truncate"
       />
       {open && suggestions.length > 0 && (
-        <div className="absolute top-full left-0 right-0 z-20 bg-white border border-[#D4D0CB] rounded-xl shadow-lg overflow-hidden mt-1">
+        <div className="absolute top-full left-0 right-0 z-30 bg-white border border-[#D4D0CB] rounded-xl shadow-lg overflow-hidden mt-1">
           {suggestions.map(s => (
             <button
               key={s.code}
               type="button"
-              onMouseDown={() => { onChange(s.label.split(' (')[0]); setOpen(false); }}
+              onMouseDown={() => {
+                onChange(s.city);
+                onSelect();
+                setOpen(false);
+              }}
               className="w-full text-left px-4 py-2.5 text-sm hover:bg-[#F5F3F0] transition flex items-center justify-between"
             >
-              <span className="text-[#1A1A1A]">{s.label.split(' (')[0]}</span>
+              <span className="text-[#1A1A1A]">{s.city}</span>
               <span className="text-xs text-[#AAAAAA] font-mono">{s.code}</span>
             </button>
           ))}
@@ -116,11 +118,33 @@ function CityInput({
 }
 
 // ── Main form ──────────────────────────────────────────────────────────────────
-export default function SearchForm({ onSearch, loading }: Props) {
+export default function SearchForm({ onSearch, loading, onOriginDetected }: Props) {
   const [fromDisplay, setFromDisplay] = useState('');
   const [toDisplay,   setToDisplay]   = useState('');
-  const [date,  setDate]  = useState('');
-  const [cabin, setCabin] = useState<CabinClass>('any');
+  const [fromReady,   setFromReady]   = useState(false);
+  const [toReady,     setToReady]     = useState(false);
+  const [date,        setDate]        = useState('');
+  const [cabin,       setCabin]       = useState<CabinClass>('business');
+  const [detecting,   setDetecting]   = useState(false);
+
+  const showDateSection = fromReady && toReady;
+
+  // Detect location on mount
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    setDetecting(true);
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        const { code, city } = findNearestAirport(pos.coords.latitude, pos.coords.longitude);
+        setFromDisplay(city);
+        setFromReady(true);
+        setDetecting(false);
+        onOriginDetected?.(code);
+      },
+      () => setDetecting(false),
+      { timeout: 8000 }
+    );
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -134,56 +158,81 @@ export default function SearchForm({ onSearch, loading }: Props) {
       {/* Main search box */}
       <div className="bg-white rounded-2xl border border-[#D4D0CB] shadow-sm overflow-hidden">
         <div className="flex items-stretch">
-          <CityInput label="From" value={fromDisplay} onChange={setFromDisplay} placeholder="Boston" />
-          <div className="flex items-center px-2 border-l border-r border-dashed border-[#D4D0CB]">
+          <CityInput
+            label="From"
+            value={fromDisplay}
+            onChange={v => { setFromDisplay(v); if (!v) setFromReady(false); }}
+            onSelect={() => setFromReady(true)}
+            placeholder="Boston"
+            detecting={detecting && !fromDisplay}
+          />
+          <div className="flex items-center px-2 border-l border-r border-dashed border-[#D4D0CB] shrink-0">
             <span className="text-[#AAAAAA] text-xl">→</span>
           </div>
-          <CityInput label="To" value={toDisplay} onChange={setToDisplay} placeholder="Zurich" />
+          <CityInput
+            label="To"
+            value={toDisplay}
+            onChange={v => { setToDisplay(v); if (!v) setToReady(false); }}
+            onSelect={() => setToReady(true)}
+            placeholder="Zurich"
+          />
         </div>
 
-        {/* Date + Cabin row */}
-        <div className="border-t border-[#EEEEEE] flex">
-          <div className="flex-1 px-6 py-3 border-r border-[#EEEEEE]">
-            <label className="text-[10px] uppercase tracking-widest text-[#AAAAAA] font-medium block mb-1">Date</label>
-            <input
-              type="date"
-              value={date}
-              onChange={e => setDate(e.target.value)}
-              required
-              min={new Date().toISOString().split('T')[0]}
-              className="text-sm text-[#444444] bg-transparent outline-none w-full"
-            />
+        {/* Date + Cabin — revealed after both cities are selected */}
+        {showDateSection && (
+          <div className="border-t border-[#EEEEEE] flex animate-[fadeSlideDown_0.25s_ease-out]">
+            <div className="flex-1 px-6 py-3 border-r border-[#EEEEEE] flex items-center gap-3">
+              <div className="flex-1">
+                <label className="text-[10px] uppercase tracking-widest text-[#AAAAAA] font-medium block mb-1">
+                  When do you want to go?
+                </label>
+                <input
+                  type="date"
+                  value={date}
+                  onChange={e => setDate(e.target.value)}
+                  required
+                  autoFocus
+                  min={new Date().toISOString().split('T')[0]}
+                  className="text-sm text-[#444444] bg-transparent outline-none w-full"
+                />
+              </div>
+              <svg className="text-[#CCCCCC] shrink-0" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
+              </svg>
+            </div>
+            <div className="flex-1 px-6 py-3">
+              <label className="text-[10px] uppercase tracking-widest text-[#AAAAAA] font-medium block mb-1">Cabin</label>
+              <select
+                value={cabin}
+                onChange={e => setCabin(e.target.value as CabinClass)}
+                className="text-sm text-[#444444] bg-transparent outline-none w-full"
+              >
+                {CABIN_OPTIONS.map(o => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </div>
           </div>
-          <div className="flex-1 px-6 py-3">
-            <label className="text-[10px] uppercase tracking-widest text-[#AAAAAA] font-medium block mb-1">Cabin</label>
-            <select
-              value={cabin}
-              onChange={e => setCabin(e.target.value as CabinClass)}
-              className="text-sm text-[#444444] bg-transparent outline-none w-full"
-            >
-              {CABIN_OPTIONS.map(o => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
-          </div>
-        </div>
+        )}
       </div>
 
-      {/* Search button */}
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full bg-[#3DB551] hover:bg-[#35A348] disabled:bg-[#A8D9B0] text-white font-hand font-bold text-2xl py-3 rounded-2xl transition flex items-center justify-center gap-2"
-      >
-        {loading ? (
-          <>
-            <span className="animate-spin inline-block w-5 h-5 border-2 border-white border-t-transparent rounded-full" />
-            Searching...
-          </>
-        ) : (
-          'Yip Yip!'
-        )}
-      </button>
+      {/* Search button — only show after both cities + date filled */}
+      {showDateSection && (
+        <button
+          type="submit"
+          disabled={loading || !date}
+          className="w-full bg-[#3DB551] hover:bg-[#35A348] disabled:bg-[#A8D9B0] text-white font-hand font-bold text-2xl py-3 rounded-2xl transition flex items-center justify-center gap-2"
+        >
+          {loading ? (
+            <>
+              <span className="animate-spin inline-block w-5 h-5 border-2 border-white border-t-transparent rounded-full" />
+              Searching...
+            </>
+          ) : (
+            'Yip Yip!'
+          )}
+        </button>
+      )}
     </form>
   );
 }

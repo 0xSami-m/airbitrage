@@ -5,3 +5,22 @@
     font-family: 'Caveat', cursive;
   }
 }
+
+@keyframes wobble {
+  0%, 75%, 100% { transform: rotate(0deg) translateY(0); }
+  78%  { transform: rotate(-2deg) translateY(-3px); }
+  82%  { transform: rotate(2deg)  translateY(-2px); }
+  86%  { transform: rotate(-1.5deg) translateY(-3px); }
+  90%  { transform: rotate(1deg)  translateY(-1px); }
+  94%  { transform: rotate(-0.5deg) translateY(0); }
+}
+
+.tile-wobble {
+  animation: wobble 5s ease-in-out infinite;
+  transform-origin: center bottom;
+}
+
+@keyframes fadeSlideDown {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}

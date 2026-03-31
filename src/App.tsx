@@ -4,6 +4,7 @@ import Nav, { type Page } from './components/Nav';
 import SearchForm from './components/SearchForm';
 import ResultsPanel from './components/ResultsPanel';
 import { DiscoverRows } from './components/DiscoverPage';
+import DestinationTiles from './components/DestinationTiles';
 import AIAgentPage from './components/AIAgentPage';
 import DashboardPage from './components/DashboardPage';
 import DevPage from './components/DevPage';
@@ -24,6 +25,7 @@ export default function App() {
   const [error, setError] = useState('');
   const [searchParams, setSearchParams] = useState<SearchParams | null>(null);
   const [booking, setBooking] = useState<{ result: FlightResult; trip: Trip } | null>(null);
+  const [detectedOrigin, setDetectedOrigin] = useState('');
 
   const handleSearch = async (params: SearchParams) => {
     setLoading(true);
@@ -109,8 +111,13 @@ export default function App() {
           <div className="flex flex-col items-center px-4 py-10 gap-8 w-full">
             {view === 'search' ? (
               <>
-                <SearchForm onSearch={handleSearch} loading={loading} />
-                <div className="w-full max-w-3xl">
+                <SearchForm
+                  onSearch={handleSearch}
+                  loading={loading}
+                  onOriginDetected={setDetectedOrigin}
+                />
+                <div className="w-full max-w-3xl flex flex-col gap-6">
+                  <DestinationTiles originCode={detectedOrigin} />
                   <DiscoverRows />
                 </div>
               </>
