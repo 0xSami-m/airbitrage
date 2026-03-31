@@ -54,13 +54,13 @@ const NAV_ITEMS: { page: Page; label: string; icon: React.ReactNode }[] = [
 export default function Nav({ current, onChange }: Props) {
   return (
     <nav className="w-full bg-[#EEEAE4] border-b border-[#D4D0CB] px-6">
-      <div className="max-w-5xl mx-auto flex items-center h-16 gap-4">
+      <div className="max-w-5xl mx-auto flex items-center h-28 gap-4">
         {/* Logo */}
         <button
           onClick={() => onChange('Search')}
           className="shrink-0"
         >
-          <img src="/flyai_logo.png" alt="flyai" className="h-16 w-auto" />
+          <img src="/flyai_logo.png" alt="flyai" className="h-24 w-auto" />
         </button>
 
         {/* Nav items — centered */}
