@@ -9,7 +9,56 @@ import AIAgentPage from './components/AIAgentPage';
 import DashboardPage from './components/DashboardPage';
 import DevPage from './components/DevPage';
 import BookingPage from './components/BookingPage';
-import type { FlightResult, SearchParams, SearchResponse, Trip } from './types';
+import type { DiscoverTile, FlightResult, SearchParams, SearchResponse, Trip } from './types';
+
+function tileToBooking(tile: DiscoverTile): { result: FlightResult; trip: Trip } {
+  const dealPrice = tile.arb_miles_cost_promo_usd ?? tile.buy_promo_usd ?? 0;
+  const segments = tile.segments ?? [];
+  const departsAt = segments[0]?.departs_at ?? tile.departs_at ?? `${tile.date}T00:00:00Z`;
+  const arrivesAt = segments[segments.length - 1]?.arrives_at ?? tile.arrives_at ?? `${tile.date}T00:00:00Z`;
+  const rawDuration = segments.reduce((s, seg) => s + (seg.duration_min ?? 0), 0);
+
+  const result: FlightResult = {
+    availability_id: `${tile.origin_code}-${tile.destination_code}-${tile.date}`,
+    date: tile.date,
+    origin: tile.origin_code,
+    destination: tile.destination_code,
+    program: tile.program,
+    program_name: tile.program_name,
+    program_logo_url: '',
+    carrier_logos: {},
+    cabin: tile.cabin,
+    miles: tile.miles,
+    taxes_usd: tile.taxes_usd,
+    arb_miles_cost_usd: dealPrice,
+    arb_miles_cost_promo_usd: dealPrice,
+    arb_price_usd: dealPrice + tile.taxes_usd,
+    arb_price_promo_usd: dealPrice + tile.taxes_usd,
+    cash_price_usd: tile.cash_fare_usd || null,
+    cash_price_source: '',
+    savings_usd: tile.savings_usd,
+    value_ratio: tile.cash_fare_usd > 0 && dealPrice + tile.taxes_usd > 0
+      ? tile.cash_fare_usd / (dealPrice + tile.taxes_usd) : null,
+    google_flights_url: '',
+    airlines: tile.airlines,
+    direct: tile.direct,
+    remaining_seats: tile.remaining_seats,
+    buy_miles_info: null,
+  };
+
+  const trip: Trip = {
+    flight_numbers: segments.map(s => s.flight_number).filter(Boolean).join(', ') || tile.airlines,
+    departs_at: departsAt,
+    arrives_at: arrivesAt,
+    total_duration_min: rawDuration || Math.round((new Date(arrivesAt).getTime() - new Date(departsAt).getTime()) / 60000),
+    stops: tile.direct ? 0 : Math.max(0, segments.length - 1),
+    carriers: tile.airlines,
+    remaining_seats: tile.remaining_seats,
+    segments,
+  };
+
+  return { result, trip };
+}
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8787';
 
@@ -117,8 +166,8 @@ export default function App() {
                   onOriginDetected={setDetectedOrigin}
                 />
                 <div className="w-full max-w-3xl flex flex-col gap-6">
-                  <DestinationTiles originCode={detectedOrigin} />
-                  <DiscoverRows />
+                  <DestinationTiles originCode={detectedOrigin} onBook={tile => setBooking(tileToBooking(tile))} />
+                  <DiscoverRows onBook={tile => setBooking(tileToBooking(tile))} />
                 </div>
               </>
             ) : (

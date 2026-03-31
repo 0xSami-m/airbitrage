@@ -239,7 +239,7 @@ function FallbackTimeline({ tile, airlineCodes }: { tile: DiscoverTile; airlineC
   );
 }
 
-function Row({ tile }: { tile: DiscoverTile }) {
+function Row({ tile, onBook }: { tile: DiscoverTile; onBook?: (tile: DiscoverTile) => void }) {
   const [expanded, setExpanded] = useState(false);
   const dimmed = !tile.availability_exists;
   const airlineCodes = parseCodes(tile.airlines as string | string[]);
@@ -254,7 +254,7 @@ function Row({ tile }: { tile: DiscoverTile }) {
     <div className={`bg-white rounded-2xl border border-[#D4D0CB] overflow-hidden transition hover:shadow-md ${dimmed ? 'opacity-50' : ''}`}>
 
       {/* ── Main row ── */}
-      <div className="flex items-center gap-4 px-5 py-4">
+      <div className="flex items-center gap-4 px-5 py-4 cursor-pointer" onClick={() => setExpanded(v => !v)}>
 
         {/* Logos — fixed width, far left, max 2 */}
         <div className="flex items-center gap-2 shrink-0 w-[72px]">
@@ -321,14 +321,11 @@ function Row({ tile }: { tile: DiscoverTile }) {
           )}
         </div>
 
-        {/* Expand button */}
+        {/* Expand indicator */}
         <div className="shrink-0">
-          <button
-            onClick={() => setExpanded(v => !v)}
-            className="w-7 h-7 rounded-full border border-[#D4D0CB] flex items-center justify-center text-[#888888] hover:border-[#999999] hover:text-[#444444] transition"
-          >
+          <div className="w-7 h-7 rounded-full border border-[#D4D0CB] flex items-center justify-center text-[#888888]">
             <span className={`text-sm transition-transform ${expanded ? 'rotate-180' : ''}`}>∨</span>
-          </button>
+          </div>
         </div>
       </div>
 
@@ -344,7 +341,7 @@ function Row({ tile }: { tile: DiscoverTile }) {
             }
           </div>
 
-          {/* Right: pricing summary */}
+          {/* Right: pricing summary + Book button */}
           <div className="flex flex-col gap-1.5 shrink-0 text-right">
             {tile.cash_fare_usd > 0 && (
               <div className="text-sm text-[#bbbbbb] line-through">~${formatUSD(tile.cash_fare_usd)} cash</div>
@@ -355,7 +352,15 @@ function Row({ tile }: { tile: DiscoverTile }) {
                 <span className="text-[#aaaaaa] font-normal"> + ${tile.taxes_usd.toFixed(0)} taxes</span>
               )}
             </div>
-            <div className="text-xs text-[#aaaaaa]">{tile.program_name}</div>
+            <div className="text-xs text-[#aaaaaa] mb-2">{tile.program_name}</div>
+            {onBook && (
+              <button
+                onClick={e => { e.stopPropagation(); onBook(tile); }}
+                className="bg-[#3DB551] hover:bg-[#35A348] text-white font-hand font-bold text-lg px-5 py-2 rounded-xl transition"
+              >
+                Book
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -363,18 +368,65 @@ function Row({ tile }: { tile: DiscoverTile }) {
   );
 }
 
-export function DiscoverRows() {
-  const [tiles, setTiles] = useState<DiscoverTile[]>([]);
-  const [loading, setLoading] = useState(true);
+const todayUTC = new Date().toISOString().split('T')[0];
+const DISCOVER_CACHE_KEY = `discover_rows_${todayUTC}`;
+
+function loadCached(): DiscoverTile[] {
+  try { return JSON.parse(localStorage.getItem(DISCOVER_CACHE_KEY) ?? ''); } catch { return []; }
+}
+
+function SkeletonRow() {
+  return (
+    <div className="bg-white rounded-2xl border border-[#D4D0CB] overflow-hidden">
+      <div className="flex items-center gap-4 px-5 py-4">
+        <div className="flex gap-2 shrink-0 w-[72px]">
+          <div className="w-8 h-8 rounded bg-[#EEEEEE] animate-pulse" />
+        </div>
+        <div className="w-[200px] shrink-0 flex flex-col gap-1.5">
+          <div className="h-3.5 w-36 bg-[#EEEEEE] rounded-full animate-pulse" />
+        </div>
+        <div className="w-[90px] shrink-0">
+          <div className="h-5 w-14 bg-[#EEEEEE] rounded-full animate-pulse" />
+        </div>
+        <div className="w-[180px] shrink-0 flex gap-2">
+          <div className="h-3.5 w-12 bg-[#EEEEEE] rounded-full animate-pulse" />
+          <div className="h-5 w-20 bg-[#EEEEEE] rounded-full animate-pulse" />
+        </div>
+        <div className="flex-1" />
+        <div className="w-[110px] flex flex-col items-end gap-1">
+          <div className="h-5 w-16 bg-[#EEEEEE] rounded-full animate-pulse" />
+          <div className="h-3 w-20 bg-[#EEEEEE] rounded-full animate-pulse" />
+        </div>
+        <div className="w-7 h-7 rounded-full border border-[#D4D0CB] shrink-0" />
+      </div>
+    </div>
+  );
+}
+
+export function DiscoverRows({ onBook }: { onBook?: (tile: DiscoverTile) => void } = {}) {
+  const [tiles, setTiles] = useState<DiscoverTile[]>(loadCached);
+  const [loading, setLoading] = useState(() => loadCached().length === 0);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    fetch(`${API_BASE}/api/discover?_=${Date.now()}`)
+    if (tiles.length > 0) return; // already hydrated from cache
+
+    fetch(`${API_BASE}/api/discover?_=${todayUTC}`)
       .then(r => {
         if (!r.ok) throw new Error(`${r.status}`);
         return r.json() as Promise<DiscoverResponse>;
       })
-      .then(data => setTiles(data.tiles))
+      .then(data => {
+        const sorted = [...(data.tiles ?? [])].sort(
+          (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+        );
+        localStorage.setItem(DISCOVER_CACHE_KEY, JSON.stringify(sorted));
+        // clean up old keys
+        Object.keys(localStorage)
+          .filter(k => k.startsWith('discover_rows_') && k !== DISCOVER_CACHE_KEY)
+          .forEach(k => localStorage.removeItem(k));
+        setTiles(sorted);
+      })
       .catch(() => setError('Could not load discover tiles. Make sure the server is running.'))
       .finally(() => setLoading(false));
   }, []);
@@ -386,16 +438,15 @@ export function DiscoverRows() {
         <p className="text-sm text-[#888888] mt-1">Live deals across all routes.</p>
       </div>
 
-      {loading && (
-        <div className="flex items-center gap-2 text-sm text-[#AAAAAA] py-4">
-          <span className="animate-spin inline-block w-4 h-4 border-2 border-[#CCCCCC] border-t-transparent rounded-full" />
-          Loading destinations...
-        </div>
-      )}
-
       {error && (
         <div className="bg-white border border-[#D4D0CB] text-[#888888] rounded-2xl px-5 py-4 text-sm">
           {error}
+        </div>
+      )}
+
+      {loading && (
+        <div className="flex flex-col gap-2">
+          {[0, 1, 2, 3, 4].map(i => <SkeletonRow key={i} />)}
         </div>
       )}
 
@@ -406,7 +457,7 @@ export function DiscoverRows() {
       {tiles.length > 0 && (
         <div className="flex flex-col gap-2">
           {tiles.map((tile, i) => (
-            <Row key={`${tile.origin_code}-${tile.destination_code}-${i}`} tile={tile} />
+            <Row key={`${tile.origin_code}-${tile.destination_code}-${i}`} tile={tile} onBook={onBook} />
           ))}
         </div>
       )}

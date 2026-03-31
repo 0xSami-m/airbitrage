@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 160" fill="none">
+  <!-- Extended baseline swoosh from left -->
+  <path d="M10 108 Q60 108 90 105" stroke="#1A1A1A" stroke-width="7" stroke-linecap="round"/>
+
+  <!-- f -->
+  <path d="M92 105 Q90 72 98 58 Q106 44 118 46 Q126 46 128 52"
+        stroke="#1A1A1A" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <path d="M84 82 Q110 78 130 80"
+        stroke="#1A1A1A" stroke-width="7" stroke-linecap="round"/>
+
+  <!-- l -->
+  <path d="M136 50 Q134 72 132 90 Q130 105 134 110 Q140 116 148 108 Q152 102 152 96"
+        stroke="#1A1A1A" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+  <!-- y -->
+  <path d="M156 72 Q162 92 168 102 Q174 112 172 124 Q170 136 160 140 Q150 144 144 138"
+        stroke="#1A1A1A" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <path d="M188 72 Q178 90 168 102"
+        stroke="#1A1A1A" stroke-width="7" stroke-linecap="round"/>
+
+  <!-- a -->
+  <path d="M210 88 Q206 72 196 72 Q184 72 180 86 Q178 96 182 106 Q188 116 198 114 Q210 112 214 100 L214 72"
+        stroke="#1A1A1A" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <path d="M214 100 Q216 110 222 112"
+        stroke="#1A1A1A" stroke-width="7" stroke-linecap="round"/>
+
+  <!-- i (dot) -->
+  <circle cx="244" cy="62" r="6" fill="#1A1A1A"/>
+  <!-- i (stem) -->
+  <path d="M238 76 Q240 90 242 106 Q244 112 248 112"
+        stroke="#1A1A1A" stroke-width="7" stroke-linecap="round"/>
+
+  <!-- Rising line from i to plane -->
+  <path d="M252 108 Q290 90 320 58 Q338 38 350 24"
+        stroke="#1A1A1A" stroke-width="7" stroke-linecap="round"/>
+
+  <!-- Plane icon (outline, nose pointing upper-right) -->
+  <!-- Body -->
+  <path d="M350 24 Q362 12 374 10 Q386 8 390 16 Q394 24 386 32 Q378 40 362 44 L340 52 L320 58 L332 44 Z"
+        stroke="#1A1A1A" stroke-width="6" stroke-linejoin="round" fill="white"/>
+  <!-- Left wing -->
+  <path d="M370 28 Q380 16 398 12 Q404 20 396 28 Q388 34 374 34"
+        stroke="#1A1A1A" stroke-width="6" stroke-linejoin="round" fill="white"/>
+  <!-- Tail -->
+  <path d="M336 50 Q328 56 322 68 Q330 68 338 60 L344 54"
+        stroke="#1A1A1A" stroke-width="6" stroke-linejoin="round" fill="white"/>
+</svg>

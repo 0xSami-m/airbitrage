@@ -57,12 +57,11 @@ function resolve(input: string): string {
 
 // ── City autocomplete input ────────────────────────────────────────────────────
 function CityInput({
-  label, value, onChange, onSelect, placeholder, detecting,
+  label, value, onChange, placeholder, detecting,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
-  onSelect: () => void;
   placeholder: string;
   detecting?: boolean;
 }) {
@@ -102,7 +101,6 @@ function CityInput({
               type="button"
               onMouseDown={() => {
                 onChange(s.city);
-                onSelect();
                 setOpen(false);
               }}
               className="w-full text-left px-4 py-2.5 text-sm hover:bg-[#F5F3F0] transition flex items-center justify-between"
@@ -121,13 +119,11 @@ function CityInput({
 export default function SearchForm({ onSearch, loading, onOriginDetected }: Props) {
   const [fromDisplay, setFromDisplay] = useState('');
   const [toDisplay,   setToDisplay]   = useState('');
-  const [fromReady,   setFromReady]   = useState(false);
-  const [toReady,     setToReady]     = useState(false);
   const [date,        setDate]        = useState('');
   const [cabin,       setCabin]       = useState<CabinClass>('business');
   const [detecting,   setDetecting]   = useState(false);
 
-  const showDateSection = fromReady && toReady;
+  const showDateSection = fromDisplay.trim().length > 1 && toDisplay.trim().length > 1;
 
   // Detect location on mount
   useEffect(() => {
@@ -137,7 +133,6 @@ export default function SearchForm({ onSearch, loading, onOriginDetected }: Prop
       pos => {
         const { code, city } = findNearestAirport(pos.coords.latitude, pos.coords.longitude);
         setFromDisplay(city);
-        setFromReady(true);
         setDetecting(false);
         onOriginDetected?.(code);
       },
@@ -161,8 +156,7 @@ export default function SearchForm({ onSearch, loading, onOriginDetected }: Prop
           <CityInput
             label="From"
             value={fromDisplay}
-            onChange={v => { setFromDisplay(v); if (!v) setFromReady(false); }}
-            onSelect={() => setFromReady(true)}
+            onChange={setFromDisplay}
             placeholder="Boston"
             detecting={detecting && !fromDisplay}
           />
@@ -172,49 +166,47 @@ export default function SearchForm({ onSearch, loading, onOriginDetected }: Prop
           <CityInput
             label="To"
             value={toDisplay}
-            onChange={v => { setToDisplay(v); if (!v) setToReady(false); }}
-            onSelect={() => setToReady(true)}
+            onChange={setToDisplay}
             placeholder="Zurich"
           />
         </div>
 
-        {/* Date + Cabin — revealed after both cities are selected */}
-        {showDateSection && (
-          <div className="border-t border-[#EEEEEE] flex animate-[fadeSlideDown_0.25s_ease-out]">
-            <div className="flex-1 px-6 py-3 border-r border-[#EEEEEE] flex items-center gap-3">
-              <div className="flex-1">
-                <label className="text-[10px] uppercase tracking-widest text-[#AAAAAA] font-medium block mb-1">
-                  When do you want to go?
-                </label>
-                <input
-                  type="date"
-                  value={date}
-                  onChange={e => setDate(e.target.value)}
-                  required
-                  autoFocus
-                  min={new Date().toISOString().split('T')[0]}
-                  className="text-sm text-[#444444] bg-transparent outline-none w-full"
-                />
-              </div>
-              <svg className="text-[#CCCCCC] shrink-0" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
-              </svg>
-            </div>
-            <div className="flex-1 px-6 py-3">
-              <label className="text-[10px] uppercase tracking-widest text-[#AAAAAA] font-medium block mb-1">Cabin</label>
-              <select
-                value={cabin}
-                onChange={e => setCabin(e.target.value as CabinClass)}
-                className="text-sm text-[#444444] bg-transparent outline-none w-full"
-              >
-                {CABIN_OPTIONS.map(o => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-        )}
       </div>
+
+      {/* Date pill — revealed after both cities are filled */}
+      {showDateSection && (
+        <div className="flex gap-3 animate-[fadeSlideDown_0.25s_ease-out]">
+          {/* Date input */}
+          <label className="flex-1 flex items-center justify-between bg-white border-2 border-[#1A1A1A] rounded-full px-6 py-4 cursor-pointer">
+            <input
+              type="date"
+              value={date}
+              onChange={e => setDate(e.target.value)}
+              required
+              autoFocus
+              min={new Date().toISOString().split('T')[0]}
+              className="font-hand text-2xl text-[#1A1A1A] bg-transparent outline-none w-full placeholder:text-[#AAAAAA] [color-scheme:light]"
+              placeholder="When do you want to go?"
+            />
+            <svg className="text-[#888888] shrink-0 ml-3" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
+            </svg>
+          </label>
+
+          {/* Cabin pill */}
+          <label className="flex items-center gap-2 bg-white border-2 border-[#1A1A1A] rounded-full px-5 py-4 cursor-pointer">
+            <select
+              value={cabin}
+              onChange={e => setCabin(e.target.value as CabinClass)}
+              className="font-hand text-xl text-[#1A1A1A] bg-transparent outline-none cursor-pointer"
+            >
+              {CABIN_OPTIONS.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+      )}
 
       {/* Search button — only show after both cities + date filled */}
       {showDateSection && (

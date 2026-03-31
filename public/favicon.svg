@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <!-- Plane body - nose upper-right -->
+  <path d="M54 18 Q66 8 78 8 Q88 8 90 18 Q92 28 82 36 Q72 44 56 48 L30 58 L20 52 L36 42 Z"
+        stroke="#1A1A1A" stroke-width="6" stroke-linejoin="round" fill="white"/>
+  <!-- Wing -->
+  <path d="M74 24 Q84 12 96 10 Q98 20 90 28 Q84 32 74 32"
+        stroke="#1A1A1A" stroke-width="5" stroke-linejoin="round" fill="white"/>
+  <!-- Tail fin -->
+  <path d="M28 56 Q18 64 14 76 Q22 76 30 66 L36 58"
+        stroke="#1A1A1A" stroke-width="5" stroke-linejoin="round" fill="white"/>
+  <!-- Ascending trail -->
+  <path d="M20 88 Q36 72 54 52"
+        stroke="#1A1A1A" stroke-width="6" stroke-linecap="round"/>
+</svg>
