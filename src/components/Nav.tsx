@@ -60,7 +60,7 @@ export default function Nav({ current, onChange }: Props) {
           onClick={() => onChange('Search')}
           className="shrink-0"
         >
-          <img src="/logo.png" alt="flyai" className="h-12 w-auto" />
+          <img src="/flyai_logo.png" alt="flyai" className="h-12 w-auto" />
         </button>
 
         {/* Nav items — centered */}
