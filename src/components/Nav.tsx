@@ -44,27 +44,6 @@ function GearIcon() {
   );
 }
 
-function FlyaiLogo() {
-  return (
-    <svg viewBox="0 0 290 58" height="40" fill="none" xmlns="http://www.w3.org/2000/svg">
-      {/* Extended baseline swoosh from left */}
-      <path d="M0 50 Q30 50 56 47" stroke="#1A1A1A" strokeWidth="4" strokeLinecap="round"/>
-      {/* flyai text */}
-      <text x="54" y="52" fontFamily="'Caveat', cursive" fontWeight="700" fontSize="44" fill="#1A1A1A">flyai</text>
-      {/* Ascending line from 'i' up to plane */}
-      <path d="M178 46 Q210 28 238 10" stroke="#1A1A1A" strokeWidth="4" strokeLinecap="round"/>
-      {/* Plane body */}
-      <path d="M238 10 Q246 2 254 1 Q261 0 263 7 Q265 14 258 20 Q251 26 238 30 L222 35 L213 38 L222 25 Z"
-            stroke="#1A1A1A" strokeWidth="3.5" strokeLinejoin="round" fill="white"/>
-      {/* Wing */}
-      <path d="M253 14 Q261 5 272 3 Q274 10 268 15 Q263 19 253 19"
-            stroke="#1A1A1A" strokeWidth="3.5" strokeLinejoin="round" fill="white"/>
-      {/* Tail */}
-      <path d="M222 32 Q215 38 212 48 Q218 48 225 41 L228 35"
-            stroke="#1A1A1A" strokeWidth="3.5" strokeLinejoin="round" fill="white"/>
-    </svg>
-  );
-}
 
 const NAV_ITEMS: { page: Page; label: string; icon: React.ReactNode }[] = [
   { page: 'Search',           label: 'Take me anywhere', icon: <CompassIcon /> },
@@ -81,7 +60,7 @@ export default function Nav({ current, onChange }: Props) {
           onClick={() => onChange('Search')}
           className="shrink-0"
         >
-          <FlyaiLogo />
+          <img src="/logo.png" alt="flyai" className="h-12 w-auto" />
         </button>
 
         {/* Nav items — centered */}
