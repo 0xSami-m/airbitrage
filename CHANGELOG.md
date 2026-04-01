@@ -1,6 +1,7 @@
 # Changelog
 
 ## 2026-04-01
+- Expand airport database from ~80 to ~300 airports; "Panama" now resolves to PTY, full coverage across Americas, Europe, Middle East, Africa, Asia, Oceania
 - Show only primary operating airline logo in best finds (longest segment, not booking program)
 - Keep date/cabin section always in DOM to prevent focus loss while typing in "to" field
 - Remove `autoFocus` from date input so it doesn't interrupt typing
