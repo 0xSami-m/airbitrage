@@ -1,6 +1,9 @@
 # Changelog
 
 ## 2026-04-01
+- Remove boarding pass header bar from search result cards
+- Make airline logo bigger (56px) and square/rounded instead of circular
+- Replace mileage program name with operating airline name on result cards (e.g. "Lufthansa" not "Miles & More")
 - Expand airport database from ~80 to ~300 airports; "Panama" now resolves to PTY, full coverage across Americas, Europe, Middle East, Africa, Asia, Oceania
 - Show only primary operating airline logo in best finds (longest segment, not booking program)
 - Keep date/cabin section always in DOM to prevent focus loss while typing in "to" field

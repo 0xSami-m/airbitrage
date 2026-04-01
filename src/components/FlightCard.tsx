@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { FlightResult, Trip, TripsResponse } from '../types';
-import { airlineLogoUrl } from '../utils/airlineLogo';
+import { airlineLogoUrl, airlineName } from '../utils/airlineLogo';
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8787';
 
@@ -74,12 +74,12 @@ function layoverDuration(a: string, b: string) {
   return `${h}h${m > 0 ? ` ${m}m` : ''}`;
 }
 
-// ── Airline logo with circle fallback ─────────────────────────────────────────
+// ── Airline logo with fallback ────────────────────────────────────────────────
 function AirlineBadge({ code, logoUrl }: { code: string; logoUrl: string }) {
   const [failed, setFailed] = useState(false);
   if (!logoUrl || failed) {
     return (
-      <div className="w-8 h-8 rounded-full border border-[#D4D0CB] bg-white flex items-center justify-center text-[10px] font-bold text-[#555555] shrink-0">
+      <div className="w-14 h-14 rounded-xl border border-[#D4D0CB] bg-white flex items-center justify-center text-xs font-bold text-[#555555] shrink-0">
         {code.slice(0, 2)}
       </div>
     );
@@ -88,7 +88,7 @@ function AirlineBadge({ code, logoUrl }: { code: string; logoUrl: string }) {
     <img
       src={logoUrl}
       alt={code}
-      className="w-8 h-8 rounded-full border border-[#D4D0CB] bg-white object-contain shrink-0"
+      className="w-14 h-14 rounded-xl border border-[#D4D0CB] bg-white object-contain shrink-0 p-1"
       onError={() => setFailed(true)}
     />
   );
@@ -179,9 +179,6 @@ export default function FlightCard({ result, mockTrips, onBook, isBestDeal }: Pr
   const primaryCode = result.airlines.split(/[,\s]+/)[0];
   const logoUrl = airlineLogoUrl(primaryCode) || result.carrier_logos?.[primaryCode] || '';
 
-  const headerBg = isBestDeal ? 'bg-[#3DB551]' : 'bg-[#888888]';
-  const headerText = 'text-white';
-
   const loadTrips = async () => {
     if (trips !== null) return;
     if (mockTrips) { setTrips(mockTrips); return; }
@@ -245,19 +242,6 @@ export default function FlightCard({ result, mockTrips, onBook, isBestDeal }: Pr
 
   return (
     <div className="bg-white rounded-2xl border border-[#D4D0CB] overflow-hidden shadow-sm hover:shadow-md transition">
-      {/* Boarding pass header */}
-      <div className={`${headerBg} ${headerText} px-5 py-1.5 flex items-center justify-between`}>
-        <span className="font-hand font-bold text-base tracking-wide opacity-90">flyAI</span>
-        <div className="flex items-center gap-3">
-          {result.remaining_seats > 0 && result.remaining_seats <= 3 && (
-            <span className="text-[10px] font-bold bg-white text-red-500 px-2 py-0.5 rounded-full">
-              Only {result.remaining_seats} left!
-            </span>
-          )}
-          <span className="text-[10px] font-semibold uppercase tracking-widest opacity-75">Boarding Pass</span>
-        </div>
-      </div>
-
       {/* Card body */}
       <div className="flex">
         {/* Left: flight info */}
@@ -284,24 +268,33 @@ export default function FlightCard({ result, mockTrips, onBook, isBestDeal }: Pr
           </div>
 
           {/* Airline + stops row */}
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-3 flex-wrap">
             <AirlineBadge code={primaryCode} logoUrl={logoUrl} />
-            <span className="text-sm text-[#444444]">
-              {result.program_name}
-              {firstTrip && <> · {firstTrip.segments[0]?.aircraft_name}</>}
-            </span>
-            <span className={`text-xs px-2.5 py-0.5 rounded-full border font-medium ${
-              result.direct
-                ? 'border-[#3DB551] text-[#3DB551]'
-                : 'border-[#CCCCCC] text-[#888888]'
-            }`}>
-              {result.direct ? 'Nonstop' : 'Connecting'}
-            </span>
-            {result.alt_date && (
-              <span className="text-xs bg-[#FFF3CD] text-[#856404] px-2 py-0.5 rounded-full border border-[#F5C842]">
-                {formatDate(result.date)} · flex date
+            <div className="flex flex-col gap-1">
+              <span className="text-sm font-semibold text-[#1A1A1A]">
+                {airlineName(primaryCode)}
+                {firstTrip && <span className="font-normal text-[#888888]"> · {firstTrip.segments[0]?.aircraft_name}</span>}
               </span>
-            )}
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className={`text-xs px-2.5 py-0.5 rounded-full border font-medium ${
+                  result.direct
+                    ? 'border-[#3DB551] text-[#3DB551]'
+                    : 'border-[#CCCCCC] text-[#888888]'
+                }`}>
+                  {result.direct ? 'Nonstop' : 'Connecting'}
+                </span>
+                {result.remaining_seats > 0 && result.remaining_seats <= 3 && (
+                  <span className="text-[10px] font-bold bg-red-50 text-red-500 px-2 py-0.5 rounded-full border border-red-200">
+                    Only {result.remaining_seats} left!
+                  </span>
+                )}
+                {result.alt_date && (
+                  <span className="text-xs bg-[#FFF3CD] text-[#856404] px-2 py-0.5 rounded-full border border-[#F5C842]">
+                    {formatDate(result.date)} · flex date
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Flight meta */}
