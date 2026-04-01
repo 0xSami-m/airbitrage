@@ -57,11 +57,12 @@ function resolve(input: string): string {
 
 // ── City autocomplete input ────────────────────────────────────────────────────
 function CityInput({
-  label, value, onChange, placeholder, detecting,
+  label, value, onChange, onCommit, placeholder, detecting,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
+  onCommit?: () => void;
   placeholder: string;
   detecting?: boolean;
 }) {
@@ -88,6 +89,8 @@ function CityInput({
         value={value}
         onChange={e => { onChange(e.target.value); setOpen(true); }}
         onFocus={() => setOpen(true)}
+        onBlur={() => { setOpen(false); onCommit?.(); }}
+        onKeyDown={e => { if (e.key === ' ' || e.key === 'Enter') onCommit?.(); }}
         placeholder={detecting ? 'Detecting…' : placeholder}
         required
         autoComplete="off"
@@ -102,6 +105,7 @@ function CityInput({
               onMouseDown={() => {
                 onChange(s.city);
                 setOpen(false);
+                onCommit?.();
               }}
               className="w-full text-left px-4 py-2.5 text-sm hover:bg-[#F5F3F0] transition flex items-center justify-between"
             >
@@ -119,11 +123,12 @@ function CityInput({
 export default function SearchForm({ onSearch, loading, onOriginDetected }: Props) {
   const [fromDisplay, setFromDisplay] = useState('');
   const [toDisplay,   setToDisplay]   = useState('');
+  const [toCommitted, setToCommitted] = useState(false);
   const [date,        setDate]        = useState('');
   const [cabin,       setCabin]       = useState<CabinClass>('business');
   const [detecting,   setDetecting]   = useState(false);
 
-  const showDateSection = fromDisplay.trim().length > 1 && toDisplay.trim().length > 1;
+  const showDateSection = fromDisplay.trim().length > 1 && toCommitted && toDisplay.trim().length > 1;
 
   // Detect location on mount
   useEffect(() => {
@@ -166,7 +171,8 @@ export default function SearchForm({ onSearch, loading, onOriginDetected }: Prop
           <CityInput
             label="To"
             value={toDisplay}
-            onChange={setToDisplay}
+            onChange={v => { setToDisplay(v); setToCommitted(false); }}
+            onCommit={() => { if (toDisplay.trim().length > 1) setToCommitted(true); }}
             placeholder="Zurich"
           />
         </div>
