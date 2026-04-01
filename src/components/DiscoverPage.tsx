@@ -419,7 +419,7 @@ export function DiscoverRows({ onBook }: { onBook?: (tile: DiscoverTile) => void
       })
       .then(data => {
         const sorted = [...(data.tiles ?? [])]
-          .filter(t => t.date === tomorrowUTC)
+          .filter(t => t.date >= tomorrowUTC)
           .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
         localStorage.setItem(DISCOVER_CACHE_KEY, JSON.stringify(sorted));
         // clean up old keys
