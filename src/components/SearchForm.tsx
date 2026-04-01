@@ -186,7 +186,6 @@ export default function SearchForm({ onSearch, loading, onOriginDetected }: Prop
               value={date}
               onChange={e => setDate(e.target.value)}
               required
-              autoFocus
               min={new Date().toISOString().split('T')[0]}
               className="font-hand text-2xl text-[#1A1A1A] bg-transparent outline-none w-full placeholder:text-[#AAAAAA] [color-scheme:light]"
               placeholder="When do you want to go?"
