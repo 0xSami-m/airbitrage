@@ -239,6 +239,16 @@ function FallbackTimeline({ tile, airlineCodes }: { tile: DiscoverTile; airlineC
   );
 }
 
+function primaryAirlineCode(tile: DiscoverTile): string | null {
+  const segments = tile.segments ?? [];
+  if (segments.length > 0) {
+    const primary = segments.reduce((best, seg) =>
+      (seg.duration_min ?? 0) > (best.duration_min ?? 0) ? seg : best, segments[0]);
+    return primary.airline_code ?? null;
+  }
+  return parseCodes(tile.airlines as string | string[])[0] ?? null;
+}
+
 function Row({ tile, onBook }: { tile: DiscoverTile; onBook?: (tile: DiscoverTile) => void }) {
   const [expanded, setExpanded] = useState(false);
   const dimmed = !tile.availability_exists;
@@ -256,20 +266,20 @@ function Row({ tile, onBook }: { tile: DiscoverTile; onBook?: (tile: DiscoverTil
       {/* ── Main row ── */}
       <div className="flex items-center gap-4 px-5 py-4 cursor-pointer" onClick={() => setExpanded(v => !v)}>
 
-        {/* Logos — fixed width, far left, max 2 */}
-        <div className="flex items-center gap-2 shrink-0 w-[72px]">
-          {airlineCodes.length > 0
-            ? airlineCodes.slice(0, 2).map(code => (
-                <img
-                  key={code}
-                  src={airlineLogoUrl(code)}
-                  alt={code}
-                  title={airlineName(code)}
-                  className="w-8 h-8 rounded object-contain bg-white"
-                  onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-                />
-              ))
-            : <div className="w-8 h-8" />}
+        {/* Logo — primary operating airline only */}
+        <div className="flex items-center shrink-0 w-[72px]">
+          {(() => {
+            const code = primaryAirlineCode(tile);
+            return code ? (
+              <img
+                src={airlineLogoUrl(code)}
+                alt={code}
+                title={airlineName(code)}
+                className="w-8 h-8 rounded object-contain bg-white"
+                onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+              />
+            ) : <div className="w-8 h-8" />;
+          })()}
         </div>
 
         {/* Route — fixed width */}
