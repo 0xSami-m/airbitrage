@@ -80,10 +80,28 @@ export interface DiscoverResponse {
   tiles: DiscoverTile[];
 }
 
+export interface FlexDateInfo {
+  reason: 'no_results_on_date' | 'cheaper_nearby_date';
+  searched_date: string;
+  flex_range: string;
+  message: string;
+  best_price_on_date?: number;
+  best_alt_price?: number;
+}
+
+export interface CabinFallbackInfo {
+  reason: 'cabin_unavailable';
+  requested_cabin: string;
+  found_cabin: string;
+  message: string;
+}
+
 export interface SearchResponse {
   summary: string;
   total_found: number;
   results: FlightResult[];
+  flex_date_info?: FlexDateInfo | null;
+  cabin_fallback_info?: CabinFallbackInfo | null;
   query: Record<string, unknown>;
 }
 

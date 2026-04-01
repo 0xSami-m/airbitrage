@@ -66,7 +66,9 @@ const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8787';
 type View = 'search' | 'results';
 
 export default function App() {
-  const [page, setPage] = useState<Page>('Search');
+  const [page, setPage] = useState<Page>(
+    window.location.pathname === '/sami' ? 'Analytics' : 'Search'
+  );
   const [view, setView] = useState<View>('search');
   const [loading, setLoading] = useState(false);
   const [flexLoading, setFlexLoading] = useState(false);

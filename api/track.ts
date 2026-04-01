@@ -1,18 +1,15 @@
-import { kv } from '@vercel/kv';
-
 export const config = { runtime: 'edge' };
 
 export default async function handler(req: Request) {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 204 });
-  }
-  if (req.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405 });
-  }
+  if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
+
+  const url   = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!url || !token) return new Response('Not configured', { status: 503 });
 
   try {
     const body = await req.json();
-    const event = {
+    const event = JSON.stringify({
       origin:        body.origin        ?? '',
       destination:   body.destination   ?? '',
       date:          body.date          ?? '',
@@ -20,11 +17,17 @@ export default async function handler(req: Request) {
       results_count: body.results_count ?? 0,
       had_results:   (body.results_count ?? 0) > 0,
       timestamp:     new Date().toISOString(),
-    };
+    });
 
-    // Store newest-first, cap at 5000 events
-    await kv.lpush('flyai:searches', JSON.stringify(event));
-    await kv.ltrim('flyai:searches', 0, 4999);
+    // LPUSH then LTRIM to cap at 5000 entries
+    await fetch(`${url}/pipeline`, {
+      method:  'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify([
+        ['lpush', 'flyai:searches', event],
+        ['ltrim', 'flyai:searches', 0, 4999],
+      ]),
+    });
 
     return new Response('ok', { status: 200 });
   } catch {

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface SearchEvent {
   origin: string;
@@ -17,26 +17,18 @@ function fmtTime(iso: string) {
 }
 
 export default function AnalyticsPage() {
-  const [token, setToken]     = useState('');
   const [events, setEvents]   = useState<SearchEvent[] | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError]     = useState('');
   const [filter, setFilter]   = useState<'all' | 'no_results'>('all');
 
-  const load = async (t: string) => {
-    setLoading(true);
-    setError('');
-    try {
-      const res = await fetch(`/api/analytics?token=${encodeURIComponent(t)}`);
-      if (res.status === 401) { setError('Wrong password.'); setLoading(false); return; }
-      if (!res.ok) throw new Error(`${res.status}`);
-      const data: SearchEvent[] = await res.json();
-      setEvents(data);
-    } catch {
-      setError('Could not load analytics.');
-    }
-    setLoading(false);
-  };
+  useEffect(() => {
+    fetch('/api/analytics')
+      .then(r => { if (!r.ok) throw new Error(`${r.status}`); return r.json(); })
+      .then((data: SearchEvent[]) => setEvents(data))
+      .catch(() => setError('Could not load analytics.'))
+      .finally(() => setLoading(false));
+  }, []);
 
   // ── Stats ─────────────────────────────────────────────────────────────────
   const total      = events?.length ?? 0;
@@ -57,44 +49,25 @@ export default function AnalyticsPage() {
     ? (events ?? []).filter(e => !e.had_results)
     : (events ?? []);
 
-  // ── Auth gate ─────────────────────────────────────────────────────────────
-  if (!events) {
+  if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 gap-4 px-4">
-        <div className="text-lg font-semibold text-[#444444]">Analytics</div>
-        <div className="flex gap-2 w-full max-w-sm">
-          <input
-            type="password"
-            value={token}
-            onChange={e => setToken(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter' && token) load(token); }}
-            placeholder="Enter ANALYTICS_SECRET"
-            className="flex-1 px-4 py-2 rounded-xl border border-[#D4D0CB] text-sm outline-none focus:border-[#888888]"
-          />
-          <button
-            onClick={() => token && load(token)}
-            disabled={loading || !token}
-            className="px-4 py-2 bg-[#1A1A1A] text-white text-sm font-semibold rounded-xl disabled:opacity-40 transition"
-          >
-            {loading ? '...' : 'Load'}
-          </button>
-        </div>
-        {error && <p className="text-sm text-red-500">{error}</p>}
+      <div className="flex items-center justify-center py-20 text-sm text-[#AAAAAA]">
+        Loading analytics…
+      </div>
+    );
+  }
+
+  if (error || !events) {
+    return (
+      <div className="flex items-center justify-center py-20 text-sm text-red-400">
+        {error || 'No data.'}
       </div>
     );
   }
 
   return (
     <div className="flex flex-col gap-6 px-6 py-10 w-full max-w-5xl mx-auto">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-extrabold text-[#555555] tracking-tight">Search Analytics</h2>
-        <button
-          onClick={() => { setEvents(null); setToken(''); }}
-          className="text-xs text-[#AAAAAA] hover:text-[#666666] transition"
-        >
-          Log out
-        </button>
-      </div>
+      <h2 className="text-2xl font-extrabold text-[#555555] tracking-tight">Search Analytics</h2>
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

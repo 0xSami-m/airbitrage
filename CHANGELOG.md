@@ -1,8 +1,8 @@
 # Changelog
 
 ## 2026-04-01
-- Add search analytics backend: every search is tracked to Vercel KV (origin, destination, date, cabin, results count)
-- Add Analytics dashboard page (password-protected via ANALYTICS_SECRET env var); accessible via tiny "analytics" link under the settings gear
+- Add search analytics: every search tracked to Upstash Redis (no extra npm packages, just 2 env vars)
+- Add analytics dashboard at flyai.net/sami (no password, URL is the secret)
 - Highlight zero-result searches in red on the analytics dashboard
 - Add prev/next day navigation buttons (‹ ›) around the date on the results page
 - Remove boarding pass header bar from search result cards
