@@ -1,6 +1,7 @@
 # Changelog
 
 ## 2026-04-01
+- Add prev/next day navigation buttons (‹ ›) around the date on the results page
 - Remove boarding pass header bar from search result cards
 - Make airline logo bigger (56px) and square/rounded instead of circular
 - Replace mileage program name with operating airline name on result cards (e.g. "Lufthansa" not "Miles & More")

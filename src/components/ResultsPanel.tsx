@@ -1,4 +1,4 @@
-import type { FlightResult, SearchParams, Trip } from '../types';
+import type { CabinFallbackInfo, FlightResult, FlexDateInfo, SearchParams, Trip } from '../types';
 import FlightCard from './FlightCard';
 import { useState } from 'react';
 
@@ -8,8 +8,11 @@ interface Props {
   error: string;
   searchParams: SearchParams;
   flexLoading?: boolean;
+  flexDateInfo?: FlexDateInfo | null;
+  cabinFallbackInfo?: CabinFallbackInfo | null;
   onBack: () => void;
   onBook: (result: FlightResult, trip: Trip) => void;
+  onDateChange: (date: string) => void;
 }
 
 type SortKey = 'value' | 'price';
@@ -41,7 +44,13 @@ function FilterIcon() {
   );
 }
 
-export default function ResultsPanel({ results, summary, error, searchParams, flexLoading, onBack, onBook }: Props) {
+function shiftDate(date: string, days: number): string {
+  const d = new Date(date + 'T00:00:00');
+  d.setDate(d.getDate() + days);
+  return d.toISOString().split('T')[0];
+}
+
+export default function ResultsPanel({ results, summary, error, searchParams, flexLoading, flexDateInfo, cabinFallbackInfo, onBack, onBook, onDateChange }: Props) {
   const [sort, setSort] = useState<SortKey>('value');
   const [directOnly, setDirectOnly] = useState(false);
 
@@ -70,7 +79,19 @@ export default function ResultsPanel({ results, summary, error, searchParams, fl
           <div className="font-hand font-bold text-2xl text-[#1A1A1A]">
             {cityFor(searchParams.from)} →→ {cityFor(searchParams.to)}
           </div>
-          <div className="text-sm text-[#888888]">{dateLabel}</div>
+          <div className="flex items-center justify-center gap-2 mt-0.5">
+            <button
+              onClick={() => onDateChange(shiftDate(searchParams.date, -1))}
+              className="text-[#AAAAAA] hover:text-[#444444] transition text-base leading-none px-1"
+              aria-label="Previous day"
+            >‹</button>
+            <span className="text-sm text-[#888888]">{dateLabel}</span>
+            <button
+              onClick={() => onDateChange(shiftDate(searchParams.date, +1))}
+              className="text-[#AAAAAA] hover:text-[#444444] transition text-base leading-none px-1"
+              aria-label="Next day"
+            >›</button>
+          </div>
         </div>
         <div className="text-sm text-[#AAAAAA] font-hand shrink-0 pt-1">
           {filtered.length} flights found
@@ -111,6 +132,28 @@ export default function ResultsPanel({ results, summary, error, searchParams, fl
           <div className="ml-auto flex items-center gap-1 text-sm text-[#888888]">
             <FilterIcon /> Filters
           </div>
+        </div>
+      )}
+
+      {/* Cabin fallback banner */}
+      {cabinFallbackInfo && !error && (
+        <div className="rounded-2xl px-5 py-3 text-sm flex items-start gap-2 border bg-[#FFF8F0] border-[#F0D9B5] text-[#8B6914]">
+          <span className="mt-0.5 shrink-0">🪑</span>
+          <span>{cabinFallbackInfo.message}</span>
+        </div>
+      )}
+
+      {/* Flex-date banner */}
+      {flexDateInfo && !error && (
+        <div className={`rounded-2xl px-5 py-3 text-sm flex items-start gap-2 border ${
+          flexDateInfo.reason === 'no_results_on_date'
+            ? 'bg-[#FFF8F0] border-[#F0D9B5] text-[#8B6914]'
+            : 'bg-[#F0F7FF] border-[#B5D4F0] text-[#1A4A7A]'
+        }`}>
+          <span className="mt-0.5 shrink-0">
+            {flexDateInfo.reason === 'no_results_on_date' ? '📅' : '💡'}
+          </span>
+          <span>{flexDateInfo.message}</span>
         </div>
       )}
 

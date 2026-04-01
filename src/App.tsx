@@ -69,6 +69,8 @@ export default function App() {
   const [view, setView] = useState<View>('search');
   const [loading, setLoading] = useState(false);
   const [flexLoading, setFlexLoading] = useState(false);
+  const [flexDateInfo, setFlexDateInfo] = useState<import('./types').FlexDateInfo | null>(null);
+  const [cabinFallbackInfo, setCabinFallbackInfo] = useState<import('./types').CabinFallbackInfo | null>(null);
   const [results, setResults] = useState<FlightResult[]>([]);
   const [summary, setSummary] = useState('');
   const [error, setError] = useState('');
@@ -79,6 +81,8 @@ export default function App() {
   const handleSearch = async (params: SearchParams) => {
     setLoading(true);
     setFlexLoading(false);
+    setFlexDateInfo(null);
+    setCabinFallbackInfo(null);
     setSearchParams(params);
     setError('');
 
@@ -107,29 +111,10 @@ export default function App() {
       const data: SearchResponse = await res.json();
       setResults(Array.isArray(data.results) ? data.results : []);
       setSummary(data.summary ?? '');
+      setFlexDateInfo(data.flex_date_info ?? null);
+      setCabinFallbackInfo(data.cabin_fallback_info ?? null);
       setView('results');
       setLoading(false);
-
-      // Phase 2: silently search ±3 days for better deals
-      const minMiles = data.results.length > 0
-        ? Math.min(...data.results.map(r => r.miles))
-        : 0;
-      if (minMiles > 0) {
-        setFlexLoading(true);
-        fetch(`${API_BASE}/api/search`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...body, flex_only: true, min_miles: Math.floor(minMiles * 0.75) }),
-        })
-          .then(r => r.ok ? r.json() : null)
-          .then((flexData: SearchResponse | null) => {
-            if (flexData?.results?.length) {
-              setResults(prev => [...prev, ...flexData.results]);
-            }
-          })
-          .catch(() => {/* best-effort */})
-          .finally(() => setFlexLoading(false));
-      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : '';
       setError(
@@ -177,8 +162,11 @@ export default function App() {
                 error={error}
                 searchParams={searchParams!}
                 flexLoading={flexLoading}
+                flexDateInfo={flexDateInfo}
+                cabinFallbackInfo={cabinFallbackInfo}
                 onBack={() => { setView('search'); setFlexLoading(false); }}
                 onBook={(result, trip) => setBooking({ result, trip })}
+                onDateChange={date => handleSearch({ ...searchParams!, date })}
               />
             )}
           </div>
