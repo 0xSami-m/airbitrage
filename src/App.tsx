@@ -110,6 +110,17 @@ export default function App() {
 
       const data: SearchResponse = await res.json();
       console.log('[flyAI] search results', data);
+      if (Array.isArray(data.results) && data.results.length > 0) {
+        console.table(data.results.map(r => ({
+          program: r.program_name,
+          miles: r.miles,
+          taxes_usd: r.taxes_usd,
+          total_usd: r.arb_price_usd,
+          cabin: r.cabin,
+          direct: r.direct,
+          airlines: r.airlines,
+        })));
+      }
       setResults(Array.isArray(data.results) ? data.results : []);
       setSummary(data.summary ?? '');
       setFlexDateInfo(data.flex_date_info ?? null);
