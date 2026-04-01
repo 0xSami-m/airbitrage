@@ -109,6 +109,7 @@ export default function App() {
       if (!res.ok) throw new Error(`Server error: ${res.status}`);
 
       const data: SearchResponse = await res.json();
+      console.log('[flyAI] search results', data);
       setResults(Array.isArray(data.results) ? data.results : []);
       setSummary(data.summary ?? '');
       setFlexDateInfo(data.flex_date_info ?? null);
