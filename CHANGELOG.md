@@ -1,6 +1,7 @@
 # Changelog
 
 ## 2026-04-01
+- Add Bookings tab to analytics dashboard: records every Book click (route, flight numbers, program, miles, total)
 - Add search analytics: every search tracked to Upstash Redis (no extra npm packages, just 2 env vars)
 - Add analytics dashboard at flyai.net/sami (password-protected, session persists until tab closes)
 - Highlight zero-result searches in red on the analytics dashboard

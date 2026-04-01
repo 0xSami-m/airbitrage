@@ -63,6 +63,27 @@ function tileToBooking(tile: DiscoverTile): { result: FlightResult; trip: Trip }
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8787';
 
+function trackBooking(result: FlightResult, trip: Trip) {
+  fetch('/api/track-booking', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      origin:        result.origin,
+      destination:   result.destination,
+      date:          result.date,
+      cabin:         result.cabin,
+      miles:         result.miles,
+      taxes_usd:     result.taxes_usd,
+      arb_price_usd: result.arb_price_usd,
+      program:       result.program,
+      program_name:  result.program_name,
+      airlines:      result.airlines,
+      direct:        result.direct,
+      flight_numbers: trip.flight_numbers,
+    }),
+  }).catch(() => { /* ignore */ });
+}
+
 type View = 'search' | 'results';
 
 export default function App() {
@@ -178,8 +199,8 @@ export default function App() {
                   onOriginDetected={setDetectedOrigin}
                 />
                 <div className="w-full max-w-3xl flex flex-col gap-6">
-                  <DestinationTiles originCode={detectedOrigin} onBook={tile => setBooking(tileToBooking(tile))} />
-                  <DiscoverRows onBook={tile => setBooking(tileToBooking(tile))} />
+                  <DestinationTiles originCode={detectedOrigin} onBook={tile => { const b = tileToBooking(tile); trackBooking(b.result, b.trip); setBooking(b); }} />
+                  <DiscoverRows onBook={tile => { const b = tileToBooking(tile); trackBooking(b.result, b.trip); setBooking(b); }} />
                 </div>
               </>
             ) : (
@@ -192,7 +213,7 @@ export default function App() {
                 flexDateInfo={flexDateInfo}
                 cabinFallbackInfo={cabinFallbackInfo}
                 onBack={() => { setView('search'); setFlexLoading(false); }}
-                onBook={(result, trip) => setBooking({ result, trip })}
+                onBook={(result, trip) => { trackBooking(result, trip); setBooking({ result, trip }); }}
                 onDateChange={date => handleSearch({ ...searchParams!, date })}
               />
             )}
