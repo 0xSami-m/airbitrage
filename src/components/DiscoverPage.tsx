@@ -370,7 +370,7 @@ function Row({ tile, onBook }: { tile: DiscoverTile; onBook?: (tile: DiscoverTil
 
 const todayUTC = new Date().toISOString().split('T')[0];
 const tomorrowUTC = new Date(Date.now() + 86400000).toISOString().split('T')[0];
-const DISCOVER_CACHE_KEY = `discover_rows_${todayUTC}`;
+const DISCOVER_CACHE_KEY = `discover_rows2_${todayUTC}`;
 
 function loadCached(): DiscoverTile[] {
   try { return JSON.parse(localStorage.getItem(DISCOVER_CACHE_KEY) ?? ''); } catch { return []; }
@@ -424,7 +424,7 @@ export function DiscoverRows({ onBook }: { onBook?: (tile: DiscoverTile) => void
         localStorage.setItem(DISCOVER_CACHE_KEY, JSON.stringify(sorted));
         // clean up old keys
         Object.keys(localStorage)
-          .filter(k => k.startsWith('discover_rows_') && k !== DISCOVER_CACHE_KEY)
+          .filter(k => k.startsWith('discover_rows') && k !== DISCOVER_CACHE_KEY)
           .forEach(k => localStorage.removeItem(k));
         setTiles(sorted);
       })

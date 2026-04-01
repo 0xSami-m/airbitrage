@@ -148,7 +148,7 @@ export default function DestinationTiles({ originCode, onBook }: Props) {
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
 
   useEffect(() => {
-    const cacheKey = `discover_${todayUTC}_${originCode}`;
+    const cacheKey = `discover2_${todayUTC}_${originCode}`;
     const cached = localStorage.getItem(cacheKey);
     if (cached) {
       try { setTiles(JSON.parse(cached)); return; } catch { /* fall through to fetch */ }
@@ -161,7 +161,7 @@ export default function DestinationTiles({ originCode, onBook }: Props) {
         localStorage.setItem(cacheKey, JSON.stringify(top3));
         // clean up yesterday's keys
         Object.keys(localStorage)
-          .filter(k => k.startsWith('discover_') && !k.startsWith(`discover_${todayUTC}`))
+          .filter(k => k.startsWith('discover') && !k.startsWith(`discover2_${todayUTC}`))
           .forEach(k => localStorage.removeItem(k));
         setTiles(top3);
       })
