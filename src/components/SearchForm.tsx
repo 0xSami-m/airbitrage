@@ -89,8 +89,7 @@ function CityInput({
         value={value}
         onChange={e => { onChange(e.target.value); setOpen(true); }}
         onFocus={() => setOpen(true)}
-        onBlur={() => { setOpen(false); onCommit?.(); }}
-        onKeyDown={e => { if (e.key === ' ' || e.key === 'Enter') onCommit?.(); }}
+        onBlur={() => setOpen(false)}
         placeholder={detecting ? 'Detecting…' : placeholder}
         required
         autoComplete="off"
@@ -123,12 +122,11 @@ function CityInput({
 export default function SearchForm({ onSearch, loading, onOriginDetected }: Props) {
   const [fromDisplay, setFromDisplay] = useState('');
   const [toDisplay,   setToDisplay]   = useState('');
-  const [toCommitted, setToCommitted] = useState(false);
   const [date,        setDate]        = useState('');
   const [cabin,       setCabin]       = useState<CabinClass>('business');
   const [detecting,   setDetecting]   = useState(false);
 
-  const showDateSection = fromDisplay.trim().length > 1 && toCommitted && toDisplay.trim().length > 1;
+  const showDateSection = fromDisplay.trim().length > 1 && toDisplay.trim().length >= 3;
 
   // Detect location on mount
   useEffect(() => {
@@ -171,8 +169,7 @@ export default function SearchForm({ onSearch, loading, onOriginDetected }: Prop
           <CityInput
             label="To"
             value={toDisplay}
-            onChange={v => { setToDisplay(v); setToCommitted(false); }}
-            onCommit={() => { if (toDisplay.trim().length > 1) setToCommitted(true); }}
+            onChange={setToDisplay}
             placeholder="Zurich"
           />
         </div>
