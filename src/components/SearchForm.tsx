@@ -176,42 +176,36 @@ export default function SearchForm({ onSearch, loading, onOriginDetected }: Prop
 
       </div>
 
-      {/* Date pill — revealed after both cities are filled */}
-      {showDateSection && (
-        <div className="flex gap-3 animate-[fadeSlideDown_0.25s_ease-out]">
-          {/* Date input */}
-          <label className="flex-1 flex items-center justify-between bg-white border-2 border-[#1A1A1A] rounded-full px-6 py-4 cursor-pointer">
-            <input
-              type="date"
-              value={date}
-              onChange={e => setDate(e.target.value)}
-              required
-              min={new Date().toISOString().split('T')[0]}
-              className="font-hand text-2xl text-[#1A1A1A] bg-transparent outline-none w-full placeholder:text-[#AAAAAA] [color-scheme:light]"
-              placeholder="When do you want to go?"
-            />
-            <svg className="text-[#888888] shrink-0 ml-3" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
-            </svg>
-          </label>
+      {/* Date pill + search button — always in DOM, visible after 3 chars */}
+      <div className={`flex gap-3 transition-all duration-200 ${showDateSection ? 'opacity-100' : 'opacity-0 pointer-events-none h-0 overflow-hidden'}`}>
+        <label className="flex-1 flex items-center justify-between bg-white border-2 border-[#1A1A1A] rounded-full px-6 py-4 cursor-pointer">
+          <input
+            type="date"
+            value={date}
+            onChange={e => setDate(e.target.value)}
+            required={showDateSection}
+            min={new Date().toISOString().split('T')[0]}
+            className="font-hand text-2xl text-[#1A1A1A] bg-transparent outline-none w-full placeholder:text-[#AAAAAA] [color-scheme:light]"
+            placeholder="When do you want to go?"
+          />
+          <svg className="text-[#888888] shrink-0 ml-3" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
+          </svg>
+        </label>
+        <label className="flex items-center gap-2 bg-white border-2 border-[#1A1A1A] rounded-full px-5 py-4 cursor-pointer">
+          <select
+            value={cabin}
+            onChange={e => setCabin(e.target.value as CabinClass)}
+            className="font-hand text-xl text-[#1A1A1A] bg-transparent outline-none cursor-pointer"
+          >
+            {CABIN_OPTIONS.map(o => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+        </label>
+      </div>
 
-          {/* Cabin pill */}
-          <label className="flex items-center gap-2 bg-white border-2 border-[#1A1A1A] rounded-full px-5 py-4 cursor-pointer">
-            <select
-              value={cabin}
-              onChange={e => setCabin(e.target.value as CabinClass)}
-              className="font-hand text-xl text-[#1A1A1A] bg-transparent outline-none cursor-pointer"
-            >
-              {CABIN_OPTIONS.map(o => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
-          </label>
-        </div>
-      )}
-
-      {/* Search button — only show after both cities + date filled */}
-      {showDateSection && (
+      <div className={`transition-all duration-200 ${showDateSection ? 'opacity-100' : 'opacity-0 pointer-events-none h-0 overflow-hidden'}`}>
         <button
           type="submit"
           disabled={loading || !date}
@@ -226,7 +220,7 @@ export default function SearchForm({ onSearch, loading, onOriginDetected }: Prop
             'Yip Yip!'
           )}
         </button>
-      )}
+      </div>
     </form>
   );
 }
