@@ -25,10 +25,11 @@ interface Props {
 
 const DELAYS = ['0s', '1.8s', '3.3s'];
 
-const todayUTC = new Date().toISOString().split('T')[0]; // "2026-03-31"
+const todayUTC = new Date().toISOString().split('T')[0];
+const tomorrowUTC = new Date(Date.now() + 86400000).toISOString().split('T')[0];
 
 function pickTiles(data: DiscoverResponse, originCode: string): DiscoverTile[] {
-  const all = data.tiles ?? [];
+  const all = (data.tiles ?? []).filter(t => t.date === tomorrowUTC);
   const fromOrigin = originCode ? all.filter(t => t.origin_code === originCode) : [];
   const pool = fromOrigin.length >= 3 ? fromOrigin : all;
   return [...pool]

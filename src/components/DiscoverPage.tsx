@@ -369,6 +369,7 @@ function Row({ tile, onBook }: { tile: DiscoverTile; onBook?: (tile: DiscoverTil
 }
 
 const todayUTC = new Date().toISOString().split('T')[0];
+const tomorrowUTC = new Date(Date.now() + 86400000).toISOString().split('T')[0];
 const DISCOVER_CACHE_KEY = `discover_rows_${todayUTC}`;
 
 function loadCached(): DiscoverTile[] {
@@ -417,9 +418,9 @@ export function DiscoverRows({ onBook }: { onBook?: (tile: DiscoverTile) => void
         return r.json() as Promise<DiscoverResponse>;
       })
       .then(data => {
-        const sorted = [...(data.tiles ?? [])].sort(
-          (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-        );
+        const sorted = [...(data.tiles ?? [])]
+          .filter(t => t.date === tomorrowUTC)
+          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
         localStorage.setItem(DISCOVER_CACHE_KEY, JSON.stringify(sorted));
         // clean up old keys
         Object.keys(localStorage)
