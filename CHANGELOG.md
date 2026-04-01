@@ -2,7 +2,7 @@
 
 ## 2026-04-01
 - Add search analytics: every search tracked to Upstash Redis (no extra npm packages, just 2 env vars)
-- Add analytics dashboard at flyai.net/sami (no password, URL is the secret)
+- Add analytics dashboard at flyai.net/sami (password-protected, session persists until tab closes)
 - Highlight zero-result searches in red on the analytics dashboard
 - Add prev/next day navigation buttons (‹ ›) around the date on the results page
 - Remove boarding pass header bar from search result cards

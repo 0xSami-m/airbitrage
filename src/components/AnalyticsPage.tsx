@@ -16,13 +16,30 @@ function fmtTime(iso: string) {
   });
 }
 
+const PASSWORD = 'Rthj9bd,x*5731';
+
 export default function AnalyticsPage() {
+  const [authed, setAuthed]   = useState(() => sessionStorage.getItem('flyai_admin') === '1');
+  const [pwInput, setPwInput] = useState('');
+  const [pwError, setPwError] = useState(false);
   const [events, setEvents]   = useState<SearchEvent[] | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError]     = useState('');
   const [filter, setFilter]   = useState<'all' | 'no_results'>('all');
 
+  const login = () => {
+    if (pwInput === PASSWORD) {
+      sessionStorage.setItem('flyai_admin', '1');
+      setAuthed(true);
+      setPwError(false);
+    } else {
+      setPwError(true);
+    }
+  };
+
   useEffect(() => {
+    if (!authed) return;
+    setLoading(true);
     fetch('/api/analytics')
       .then(r => { if (!r.ok) throw new Error(`${r.status}`); return r.json(); })
       .then((data: SearchEvent[]) => setEvents(data))
@@ -48,6 +65,32 @@ export default function AnalyticsPage() {
   const displayed = filter === 'no_results'
     ? (events ?? []).filter(e => !e.had_results)
     : (events ?? []);
+
+  if (!authed) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-3 px-4">
+        <div className="text-base font-semibold text-[#444444]">Analytics</div>
+        <div className="flex gap-2 w-full max-w-xs">
+          <input
+            type="password"
+            value={pwInput}
+            onChange={e => { setPwInput(e.target.value); setPwError(false); }}
+            onKeyDown={e => e.key === 'Enter' && login()}
+            placeholder="Password"
+            className={`flex-1 px-4 py-2 rounded-xl border text-sm outline-none ${pwError ? 'border-red-400' : 'border-[#D4D0CB] focus:border-[#888888]'}`}
+            autoFocus
+          />
+          <button
+            onClick={login}
+            className="px-4 py-2 bg-[#1A1A1A] text-white text-sm font-semibold rounded-xl transition"
+          >
+            Go
+          </button>
+        </div>
+        {pwError && <p className="text-xs text-red-400">Wrong password.</p>}
+      </div>
+    );
+  }
 
   if (loading) {
     return (
