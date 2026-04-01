@@ -8,6 +8,7 @@ import DestinationTiles from './components/DestinationTiles';
 import AIAgentPage from './components/AIAgentPage';
 import DashboardPage from './components/DashboardPage';
 import DevPage from './components/DevPage';
+import AnalyticsPage from './components/AnalyticsPage';
 import BookingPage from './components/BookingPage';
 import type { DiscoverTile, FlightResult, SearchParams, SearchResponse, Trip } from './types';
 
@@ -110,6 +111,18 @@ export default function App() {
 
       const data: SearchResponse = await res.json();
       console.log('[flyAI] search results', data);
+      // Fire-and-forget analytics tracking
+      fetch('/api/track', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          origin:        params.from,
+          destination:   params.to,
+          date:          params.date,
+          cabin:         params.cabin,
+          results_count: Array.isArray(data.results) ? data.results.length : 0,
+        }),
+      }).catch(() => { /* ignore */ });
       if (Array.isArray(data.results) && data.results.length > 0) {
         console.table(data.results.map(r => ({
           program: r.program_name,
@@ -191,6 +204,8 @@ export default function App() {
         return <EmptyPage title="Settings" description="Account preferences and API configuration will appear here." />;
       case 'Dev':
         return <DevPage />;
+      case 'Analytics':
+        return <AnalyticsPage />;
     }
   };
 

@@ -1,6 +1,9 @@
 # Changelog
 
 ## 2026-04-01
+- Add search analytics backend: every search is tracked to Vercel KV (origin, destination, date, cabin, results count)
+- Add Analytics dashboard page (password-protected via ANALYTICS_SECRET env var); accessible via tiny "analytics" link under the settings gear
+- Highlight zero-result searches in red on the analytics dashboard
 - Add prev/next day navigation buttons (‹ ›) around the date on the results page
 - Remove boarding pass header bar from search result cards
 - Make airline logo bigger (56px) and square/rounded instead of circular

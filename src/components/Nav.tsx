@@ -1,4 +1,4 @@
-export type Page = 'Search' | 'AI Travel Agent' | 'My Dashboard' | 'Settings' | 'Dev';
+export type Page = 'Search' | 'AI Travel Agent' | 'My Dashboard' | 'Settings' | 'Dev' | 'Analytics';
 
 interface Props {
   current: Page;
@@ -83,13 +83,21 @@ export default function Nav({ current, onChange }: Props) {
           ))}
         </div>
 
-        {/* Settings */}
-        <button
-          onClick={() => onChange('Settings')}
-          className="shrink-0 w-9 h-9 rounded-full border border-[#C8C4BE] flex items-center justify-center text-[#666666] hover:text-[#333333] hover:border-[#999999] transition"
-        >
-          <GearIcon />
-        </button>
+        {/* Settings + hidden analytics link */}
+        <div className="shrink-0 flex flex-col items-center gap-0.5">
+          <button
+            onClick={() => onChange('Settings')}
+            className="w-9 h-9 rounded-full border border-[#C8C4BE] flex items-center justify-center text-[#666666] hover:text-[#333333] hover:border-[#999999] transition"
+          >
+            <GearIcon />
+          </button>
+          <button
+            onClick={() => onChange('Analytics')}
+            className="text-[9px] text-[#CCCCCC] hover:text-[#999999] transition leading-none"
+          >
+            analytics
+          </button>
+        </div>
       </div>
     </nav>
   );
