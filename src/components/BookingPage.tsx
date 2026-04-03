@@ -52,55 +52,157 @@ function formatUSD(n: number) {
 const inputCls = "w-full px-4 py-3 border border-[#D4D0CB] rounded-xl text-sm text-[#333333] bg-white focus:outline-none focus:border-[#888888] transition placeholder:text-[#CCCCCC]";
 
 export default function BookingPage({ result, trip, onBack }: Props) {
-  const [firstName, setFirstName]     = useState('');
-  const [lastName, setLastName]       = useState('');
-  const [dob, setDob]                 = useState('');
-  const [email, setEmail]             = useState('');
-  const [phone, setPhone]             = useState('');
-  const [passport, setPassport]       = useState('');
-  const [nationality, setNationality] = useState('');
-  const [submitting, setSubmitting]   = useState(false);
-  const [success, setSuccess]         = useState(false);
-  const partialSentRef                = useRef(false);
+  const [firstName, setFirstName]         = useState('');
+  const [lastName, setLastName]           = useState('');
+  const [dob, setDob]                     = useState('');
+  const [email, setEmail]                 = useState('');
+  const [phone, setPhone]                 = useState('');
+  const [passport, setPassport]           = useState('');
+  const [passportExpiry, setPassportExpiry] = useState('');
+  const [nationality, setNationality]     = useState('');
+  const [submitting, setSubmitting]       = useState(false);
+  const [bookingId, setBookingId]         = useState<number | null>(null);
+  const [statusMsg, setStatusMsg]         = useState('');
+  const [confirmed, setConfirmed]         = useState(false);
+  const [error, setError]                 = useState('');
+  const partialSentRef                    = useRef(false);
+  const pollRef                           = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const totalUsd = result.arb_price_usd;
 
-  const pingAppa = (text: string) => {
-    fetch(`${API_BASE}/api/notify-booking`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text }),
-    }).catch(() => {/* best-effort */});
-  };
-
+  // Fire a partial lead ping once basic info is filled
   useEffect(() => {
     if (partialSentRef.current) return;
     if (firstName && lastName && dob && phone) {
       partialSentRef.current = true;
-      pingAppa(`[Lead] ${firstName} ${lastName} · DOB: ${dob} · Phone: ${phone} — filling out ${result.origin}→${result.destination} ${result.date} (${result.cabin})`);
+      fetch(`${API_BASE}/api/notify-booking`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: `[Lead] ${firstName} ${lastName} · DOB: ${dob} · Phone: ${phone} — filling out ${result.origin}→${result.destination} ${result.date} (${result.cabin})`,
+        }),
+      }).catch(() => {/* best-effort */});
     }
   }, [firstName, lastName, dob, phone]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Poll booking status after submission
+  useEffect(() => {
+    if (bookingId === null) return;
+    setStatusMsg('⏳ Booking received — processing now...');
+    pollRef.current = setInterval(async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/booking-status/${bookingId}`);
+        const data = await res.json();
+        if (data.status === 'confirmed') {
+          clearInterval(pollRef.current!);
+          setConfirmed(true);
+          setStatusMsg('✅ Confirmed!');
+        } else if (data.status === 'failed') {
+          clearInterval(pollRef.current!);
+          setError(data.error || 'Booking failed — please contact support.');
+          setStatusMsg('');
+        } else {
+          setStatusMsg(`⏳ ${data.message || 'Processing...'}`);
+        }
+      } catch {
+        // keep polling silently
+      }
+    }, 4000);
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, [bookingId]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    pingAppa(`[Booking] ${firstName} ${lastName} · ${result.origin}→${result.destination} ${result.date} (${result.cabin}) · ${result.miles.toLocaleString()} miles + $${result.taxes_usd.toFixed(2)} taxes · Total $${totalUsd.toFixed(2)} · DOB: ${dob} · Phone: ${phone} · Email: ${email || 'N/A'} · Passport: ${passport || 'N/A'} · Nationality: ${nationality || 'N/A'}`);
-    setSuccess(true);
+    setError('');
+
+    // Grab geolocation best-effort (don't block on it)
+    const geo: { lat: number; lon: number } | null = await new Promise(resolve => {
+      if (!navigator.geolocation) { resolve(null); return; }
+      navigator.geolocation.getCurrentPosition(
+        p => resolve({ lat: p.coords.latitude, lon: p.coords.longitude }),
+        () => resolve(null),
+        { timeout: 3000, maximumAge: 60000 },
+      );
+    });
+
+    // Fire analytics with full client info
+    fetch('/api/track-booking', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        event_type: 'form_submit',
+        origin: result.origin, destination: result.destination,
+        date: result.date, cabin: result.cabin,
+        miles: result.miles, taxes_usd: result.taxes_usd,
+        arb_price_usd: result.arb_price_usd,
+        program: result.program, program_name: result.program_name,
+        airlines: Array.isArray(result.airlines) ? result.airlines.join(', ') : result.airlines,
+        flight_numbers: trip.flight_numbers,
+        client: { first_name: firstName, last_name: lastName, dob, email, phone, passport, passport_expiry: passportExpiry, nationality },
+        geo,
+      }),
+    }).catch(() => {});
+
+    const payload = {
+      flight: {
+        origin:          result.origin,
+        destination:     result.destination,
+        date:            result.date,
+        cabin:           result.cabin,
+        availability_id: result.availability_id,
+        miles:           result.miles,
+        taxes_usd:       result.taxes_usd,
+        program:         result.program,
+        program_name:    result.program_name,
+        flight_numbers:  trip.flight_numbers,
+        carriers:        trip.carriers,
+      },
+      client: {
+        first_name:      firstName,
+        last_name:       lastName,
+        dob,
+        email,
+        phone,
+        passport,
+        passport_expiry: passportExpiry,
+        nationality,
+      },
+    };
+
+    try {
+      const res = await fetch(`${API_BASE}/api/book-complete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || `Error ${res.status}`);
+        setSubmitting(false);
+        return;
+      }
+      setBookingId(data.booking_id);
+    } catch (err) {
+      setError('Network error — please try again.');
+    }
     setSubmitting(false);
   };
 
-  if (success) {
+  // ── Confirmed screen ──────────────────────────────────────────────────────
+  if (confirmed) {
     return (
       <div className="flex flex-col items-center px-4 py-16 gap-6 w-full max-w-xl mx-auto text-center">
         <div className="font-hand font-bold text-4xl text-[#1A1A1A]">
           You're going to {AIRPORT_CITIES[result.destination] ?? result.destination}!
         </div>
         <div className="text-[#3DB551] font-hand text-xl">
-          and you just saved{' '}
           {result.savings_usd != null && (
-            <span className="border-2 border-[#3DB551] rounded-full px-3 py-0.5">
-              ${formatUSD(result.savings_usd)}
-            </span>
+            <>and you just saved{' '}
+              <span className="border-2 border-[#3DB551] rounded-full px-3 py-0.5">
+                ${formatUSD(result.savings_usd)}
+              </span>
+            </>
           )}
         </div>
         <div className="bg-white rounded-2xl border border-[#D4D0CB] overflow-hidden w-full shadow-sm">
@@ -129,21 +231,29 @@ export default function BookingPage({ result, trip, onBack }: Props) {
                 <span className="text-sm text-[#AAAAAA] line-through">${formatUSD(result.cash_price_usd)}</span>
               )}
               <span className="font-hand font-bold text-2xl text-[#3DB551]">${formatUSD(totalUsd)}</span>
-              {result.value_ratio != null && result.value_ratio >= 1.5 && (
-                <span className="bg-[#F5C842] text-[#1A1A1A] text-[10px] font-bold px-2 py-0.5 rounded-full">
-                  {result.value_ratio.toFixed(1)}x value
-                </span>
-              )}
             </div>
           </div>
         </div>
         <div className="text-sm text-[#888888]">
-          We'll send confirmation to <strong>{email}</strong> once your booking is processed.
+          Confirmation sent to <strong>{email}</strong>.
         </div>
       </div>
     );
   }
 
+  // ── Processing screen ─────────────────────────────────────────────────────
+  if (bookingId !== null) {
+    return (
+      <div className="flex flex-col items-center px-4 py-24 gap-6 w-full max-w-xl mx-auto text-center">
+        <div className="font-hand font-bold text-3xl text-[#1A1A1A]">Booking in progress...</div>
+        <div className="text-[#888888] text-sm">{statusMsg}</div>
+        {error && <div className="text-red-500 text-sm">{error}</div>}
+        <div className="text-xs text-[#AAAAAA]">Booking #{bookingId} · This usually takes 1–2 minutes.</div>
+      </div>
+    );
+  }
+
+  // ── Form ──────────────────────────────────────────────────────────────────
   return (
     <div className="w-full max-w-2xl mx-auto px-4 pb-24 flex flex-col gap-4">
       {/* Flight summary card */}
@@ -155,7 +265,6 @@ export default function BookingPage({ result, trip, onBack }: Props) {
           </button>
         </div>
         <div className="p-6 flex flex-col gap-3">
-          {/* Route */}
           <div className="flex items-center gap-3">
             <div className="font-hand font-bold text-5xl text-[#1A1A1A] leading-none">{result.origin}</div>
             <div className="flex-1 flex items-center gap-1">
@@ -165,16 +274,12 @@ export default function BookingPage({ result, trip, onBack }: Props) {
             </div>
             <div className="font-hand font-bold text-5xl text-[#1A1A1A] leading-none">{result.destination}</div>
           </div>
-
           <div className="text-sm text-[#888888]">{formatDate(result.date)}</div>
-
           <div className="text-sm text-[#555555]">
             {trip.flight_numbers} · {result.program_name} · {result.cabin.charAt(0).toUpperCase() + result.cabin.slice(1)}
             {' · '}{trip.stops === 0 ? 'Nonstop' : `${trip.stops} stop${trip.stops > 1 ? 's' : ''}`}
             {' · '}{formatDuration(trip.total_duration_min)}
           </div>
-
-          {/* Timeline dots */}
           <div className="flex items-center gap-3 py-1">
             <div className="flex flex-col items-start gap-0.5">
               <span className="text-sm font-semibold text-[#222222]">{formatTime(trip.departs_at)}</span>
@@ -190,8 +295,6 @@ export default function BookingPage({ result, trip, onBack }: Props) {
               <span className="text-xs text-[#999999]">{cityLabel(result.destination)}</span>
             </div>
           </div>
-
-          {/* Price */}
           <div className="flex items-center gap-3 pt-1">
             {result.cash_price_usd != null && (
               <span className="text-base text-[#AAAAAA] line-through">${formatUSD(result.cash_price_usd)}</span>
@@ -211,22 +314,19 @@ export default function BookingPage({ result, trip, onBack }: Props) {
         <div className="bg-white rounded-2xl border border-[#D4D0CB] p-6 flex flex-col gap-5 shadow-sm">
           <h3 className="font-hand font-bold text-2xl text-[#1A1A1A] flex items-center gap-2">
             Who's flying?
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
-            </svg>
           </h3>
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-[#888888]">First name</label>
+              <label className="text-xs text-[#888888]">First name (as on passport)</label>
               <input value={firstName} onChange={e => setFirstName(e.target.value)} required className={inputCls} placeholder="Namik" />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-[#888888]">Last name</label>
+              <label className="text-xs text-[#888888]">Last name (as on passport)</label>
               <input value={lastName} onChange={e => setLastName(e.target.value)} required className={inputCls} placeholder="Muduroglu" />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-[#888888]">Date of birth</label>
-              <input type="date" value={dob} onChange={e => setDob(e.target.value)} required className={inputCls} placeholder="mm/dd/yyyy" />
+              <input type="date" value={dob} onChange={e => setDob(e.target.value)} required className={inputCls} />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs text-[#888888]">Phone</label>
@@ -237,17 +337,26 @@ export default function BookingPage({ result, trip, onBack }: Props) {
               <input value={passport} onChange={e => setPassport(e.target.value)} required className={inputCls} placeholder="AB123456" />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs text-[#888888]">Nationality</label>
-              <input value={nationality} onChange={e => setNationality(e.target.value)} required className={inputCls} placeholder="US" />
+              <label className="text-xs text-[#888888]">Passport expiry</label>
+              <input type="date" value={passportExpiry} onChange={e => setPassportExpiry(e.target.value)} required className={inputCls} />
             </div>
-            <div className="col-span-2 flex flex-col gap-1.5">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-[#888888]">Nationality (country code)</label>
+              <input value={nationality} onChange={e => setNationality(e.target.value)} required className={inputCls} placeholder="US" maxLength={2} />
+            </div>
+            <div className="flex flex-col gap-1.5">
               <label className="text-xs text-[#888888]">Email</label>
-              <input type="email" value={email} onChange={e => setEmail(e.target.value)} required className={inputCls} placeholder="namik@example.com" />
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} required className={inputCls} placeholder="you@example.com" />
             </div>
           </div>
         </div>
 
-        {/* Sticky bottom CTA */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-3 rounded-xl">
+            {error}
+          </div>
+        )}
+
         <div className="fixed bottom-0 left-0 right-0 z-10">
           <div className="max-w-2xl mx-auto px-4 pb-4">
             <button
@@ -255,7 +364,7 @@ export default function BookingPage({ result, trip, onBack }: Props) {
               disabled={submitting}
               className="w-full bg-[#3DB551] hover:bg-[#35A348] disabled:opacity-50 text-white font-hand font-bold text-2xl py-4 rounded-2xl transition"
             >
-              {submitting ? 'Processing...' : `Finalize Booking · $${formatUSD(totalUsd)}`}
+              {submitting ? 'Submitting...' : `Book Now · $${formatUSD(totalUsd)}`}
             </button>
             <p className="text-center text-xs text-[#AAAAAA] mt-2">
               By booking you agree to <span className="underline cursor-pointer">FlyAI's terms</span>

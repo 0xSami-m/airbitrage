@@ -11,6 +11,7 @@ interface SearchEvent {
 }
 
 interface BookingEvent {
+  event_type?: string;
   origin: string;
   destination: string;
   date: string;
@@ -21,8 +22,20 @@ interface BookingEvent {
   program: string;
   program_name: string;
   airlines: string;
-  direct: boolean;
+  direct?: boolean;
   flight_numbers: string;
+  ip?: string;
+  geo?: { lat: number; lon: number } | null;
+  client?: {
+    first_name: string;
+    last_name: string;
+    dob: string;
+    email: string;
+    phone: string;
+    passport: string;
+    passport_expiry: string;
+    nationality: string;
+  };
   timestamp: string;
 }
 
@@ -244,42 +257,62 @@ export default function AnalyticsPage() {
 
       {/* ── Bookings tab ── */}
       {tab === 'bookings' && (
-        <div className="bg-white rounded-2xl border border-[#dddddd] shadow-sm overflow-hidden">
-          <div className="px-6 py-4 border-b border-[#eeeeee]">
-            <div className="text-sm font-semibold text-[#555555]">Book button clicks</div>
-            <div className="text-xs text-[#aaaaaa] mt-0.5">Every time someone clicked Book — the flight + program info sent to OpenClaw</div>
+        <div className="flex flex-col gap-4">
+          <div className="text-xs text-[#aaaaaa]">
+            {bookings?.length ?? 0} events — button clicks and form submissions
           </div>
           {!bookings || bookings.length === 0 ? (
-            <div className="px-6 py-10 text-sm text-[#bbbbbb] text-center">No bookings yet.</div>
+            <div className="bg-white rounded-2xl border border-[#dddddd] px-6 py-10 text-sm text-[#bbbbbb] text-center">No bookings yet.</div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-xs text-[#aaaaaa] font-medium border-b border-[#eeeeee]">
-                    <th className="text-left px-4 py-3 whitespace-nowrap">Time</th>
-                    <th className="text-left px-4 py-3 whitespace-nowrap">Route</th>
-                    <th className="text-left px-4 py-3 whitespace-nowrap">Flight</th>
-                    <th className="text-left px-4 py-3 whitespace-nowrap">Cabin</th>
-                    <th className="text-left px-4 py-3 whitespace-nowrap">Program</th>
-                    <th className="text-right px-4 py-3 whitespace-nowrap">Miles</th>
-                    <th className="text-right px-4 py-3 whitespace-nowrap">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {bookings.map((b, i) => (
-                    <tr key={i} className="border-b border-[#f5f5f5] hover:bg-[#fafafa] transition">
-                      <td className="px-4 py-2.5 text-[#999999] whitespace-nowrap text-xs">{fmtTime(b.timestamp)}</td>
-                      <td className="px-4 py-2.5 font-mono font-semibold text-[#444444] whitespace-nowrap">{b.origin} → {b.destination}</td>
-                      <td className="px-4 py-2.5 text-[#777777] whitespace-nowrap">{b.flight_numbers || '—'}</td>
-                      <td className="px-4 py-2.5 text-[#777777] capitalize whitespace-nowrap">{b.cabin}</td>
-                      <td className="px-4 py-2.5 text-[#555555] whitespace-nowrap">{b.program_name}</td>
-                      <td className="px-4 py-2.5 text-right text-[#777777] whitespace-nowrap">{b.miles?.toLocaleString()}</td>
-                      <td className="px-4 py-2.5 text-right font-semibold text-[#3DB551] whitespace-nowrap">{fmtUSD(b.arb_price_usd)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            bookings.map((b, i) => (
+              <div key={i} className="bg-white rounded-2xl border border-[#dddddd] shadow-sm px-6 py-5 flex flex-col gap-4">
+                {/* Header row */}
+                <div className="flex items-center justify-between gap-4 flex-wrap">
+                  <div className="flex items-center gap-3">
+                    <span className="font-mono font-bold text-lg text-[#333333]">{b.origin} → {b.destination}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${b.event_type === 'form_submit' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                      {b.event_type === 'form_submit' ? 'Form submitted' : 'Book clicked'}
+                    </span>
+                  </div>
+                  <div className="text-xs text-[#999999]">{fmtTime(b.timestamp)}</div>
+                </div>
+
+                {/* Flight info */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                  <div><span className="text-[#aaaaaa] text-xs block">Date</span>{b.date}</div>
+                  <div><span className="text-[#aaaaaa] text-xs block">Cabin</span><span className="capitalize">{b.cabin}</span></div>
+                  <div><span className="text-[#aaaaaa] text-xs block">Program</span>{b.program_name || b.program}</div>
+                  <div><span className="text-[#aaaaaa] text-xs block">Flights</span>{b.flight_numbers || '—'}</div>
+                  <div><span className="text-[#aaaaaa] text-xs block">Miles</span>{b.miles?.toLocaleString() ?? '—'}</div>
+                  <div><span className="text-[#aaaaaa] text-xs block">Taxes</span>{b.taxes_usd != null ? fmtUSD(b.taxes_usd) : '—'}</div>
+                  <div><span className="text-[#aaaaaa] text-xs block">Total</span><span className="font-semibold text-[#3DB551]">{fmtUSD(b.arb_price_usd)}</span></div>
+                </div>
+
+                {/* Client info (form submissions only) */}
+                {b.client && (
+                  <div className="border-t border-[#eeeeee] pt-4">
+                    <div className="text-xs text-[#aaaaaa] font-semibold uppercase tracking-wide mb-2">Passenger</div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                      <div><span className="text-[#aaaaaa] text-xs block">Name</span>{b.client.first_name} {b.client.last_name}</div>
+                      <div><span className="text-[#aaaaaa] text-xs block">DOB</span>{b.client.dob}</div>
+                      <div><span className="text-[#aaaaaa] text-xs block">Email</span>{b.client.email}</div>
+                      <div><span className="text-[#aaaaaa] text-xs block">Phone</span>{b.client.phone}</div>
+                      <div><span className="text-[#aaaaaa] text-xs block">Passport</span>{b.client.passport}</div>
+                      <div><span className="text-[#aaaaaa] text-xs block">Expiry</span>{b.client.passport_expiry}</div>
+                      <div><span className="text-[#aaaaaa] text-xs block">Nationality</span>{b.client.nationality}</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* IP + geo */}
+                {(b.ip || b.geo) && (
+                  <div className="border-t border-[#eeeeee] pt-3 flex flex-wrap gap-4 text-xs text-[#888888]">
+                    {b.ip && <span>IP: <span className="font-mono text-[#555555]">{b.ip}</span></span>}
+                    {b.geo && <span>GPS: <span className="font-mono text-[#555555]">{b.geo.lat.toFixed(4)}, {b.geo.lon.toFixed(4)}</span></span>}
+                  </div>
+                )}
+              </div>
+            ))
           )}
         </div>
       )}

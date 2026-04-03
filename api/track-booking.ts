@@ -9,7 +9,15 @@ export default async function handler(req: Request) {
 
   try {
     const body = await req.json();
-    const event = JSON.stringify({ ...body, timestamp: new Date().toISOString() });
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+            ?? req.headers.get('x-real-ip')
+            ?? 'unknown';
+
+    const event = JSON.stringify({
+      ...body,
+      ip,
+      timestamp: new Date().toISOString(),
+    });
 
     await fetch(`${url}/pipeline`, {
       method:  'POST',
