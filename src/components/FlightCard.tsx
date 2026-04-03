@@ -176,7 +176,8 @@ export default function FlightCard({ result, mockTrips, onBook, isBestDeal }: Pr
   const [tripsError, setTripsError]   = useState('');
   const [bookLoading, setBookLoading] = useState(false);
 
-  const primaryCode = result.airlines.split(/[,\s]+/)[0];
+  const airlinesStr = Array.isArray(result.airlines) ? result.airlines.join(', ') : (result.airlines ?? '');
+  const primaryCode = airlinesStr.split(/[,\s]+/)[0];
   const logoUrl = airlineLogoUrl(primaryCode) || result.carrier_logos?.[primaryCode] || '';
 
   const loadTrips = async () => {
