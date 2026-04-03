@@ -43,11 +43,18 @@ export interface FlightResult {
   savings_usd: number | null;
   value_ratio: number | null;
   google_flights_url: string;
-  airlines: string;
+  airlines: string | string[];
   direct: boolean;
   remaining_seats: number;
   buy_miles_info: BuyMilesInfo | null;
   alt_date?: boolean;
+  // Fields returned directly by the API
+  flight_numbers?: string;
+  departs_at?: string;
+  arrives_at?: string;
+  stops?: number;
+  carriers?: string;
+  segments?: TripSegment[];
 }
 
 export interface DiscoverTile {

@@ -1,8 +1,6 @@
 import { useState } from 'react';
-import type { FlightResult, Trip, TripsResponse } from '../types';
+import type { FlightResult, Trip } from '../types';
 import { airlineLogoUrl, airlineName } from '../utils/airlineLogo';
-
-const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8787';
 
 interface Props {
   result: FlightResult;
@@ -170,40 +168,31 @@ function TripTimeline({ trip }: { trip: Trip }) {
 
 // ── Main card ─────────────────────────────────────────────────────────────────
 export default function FlightCard({ result, mockTrips, onBook, isBestDeal }: Props) {
-  const [expanded, setExpanded]       = useState(false);
-  const [trips, setTrips]             = useState<Trip[] | null>(null);
-  const [tripsLoading, setTripsLoading] = useState(false);
-  const [tripsError, setTripsError]   = useState('');
-  const [bookLoading, setBookLoading] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [trips, setTrips]       = useState<Trip[] | null>(null);
+  const [tripsError, setTripsError] = useState('');
 
   const airlinesStr = Array.isArray(result.airlines) ? result.airlines.join(', ') : (result.airlines ?? '');
   const primaryCode = airlinesStr.split(/[,\s]+/)[0];
   const logoUrl = airlineLogoUrl(primaryCode) || result.carrier_logos?.[primaryCode] || '';
 
-  const loadTrips = async () => {
+  // Build a Trip directly from the search result's embedded segment data
+  const tripFromResult: Trip | null = result.segments && result.segments.length > 0 ? {
+    flight_numbers: result.flight_numbers ?? result.segments.map(s => s.flight_number).join(', '),
+    departs_at:     result.departs_at ?? result.segments[0].departs_at,
+    arrives_at:     result.arrives_at ?? result.segments[result.segments.length - 1].arrives_at,
+    total_duration_min: result.segments.reduce((sum, s) => sum + (s.duration_min ?? 0), 0),
+    stops:          result.stops ?? result.segments.length - 1,
+    carriers:       airlinesStr,
+    remaining_seats: result.remaining_seats,
+    segments:       result.segments,
+  } : null;
+
+  const loadTrips = () => {
     if (trips !== null) return;
     if (mockTrips) { setTrips(mockTrips); return; }
-    setTripsLoading(true);
-    setTripsError('');
-    try {
-      const fetchT = async (withCarrier: boolean) => {
-        const p = new URLSearchParams();
-        if (result.direct) p.set('direct_only', 'true');
-        if (withCarrier && primaryCode) p.set('carriers', primaryCode);
-        const res = await fetch(`${API_BASE}/api/trips/${result.availability_id}?${p}`);
-        if (!res.ok) throw new Error(`${res.status}`);
-        return res.json() as Promise<TripsResponse>;
-      };
-      let data = await fetchT(true);
-      if (data.trips.length === 0 && primaryCode) data = await fetchT(false);
-      const seen = new Set<string>();
-      setTrips(data.trips.filter(t => {
-        const k = `${t.flight_numbers}|${t.departs_at}`;
-        if (seen.has(k)) return false;
-        seen.add(k); return true;
-      }));
-    } catch { setTripsError('Could not load itineraries.'); }
-    finally { setTripsLoading(false); }
+    if (tripFromResult) { setTrips([tripFromResult]); return; }
+    setTripsError('No itinerary data available.');
   };
 
   const handleToggle = () => {
@@ -212,31 +201,10 @@ export default function FlightCard({ result, mockTrips, onBook, isBestDeal }: Pr
     loadTrips();
   };
 
-  const handleBook = async () => {
+  const handleBook = () => {
     if (!onBook) return;
-    if (trips && trips.length > 0) { onBook(result, trips[0]); return; }
-    setBookLoading(true);
-    try {
-      const fetchT = async (withCarrier: boolean) => {
-        const p = new URLSearchParams();
-        if (result.direct) p.set('direct_only', 'true');
-        if (withCarrier && primaryCode) p.set('carriers', primaryCode);
-        const res = await fetch(`${API_BASE}/api/trips/${result.availability_id}?${p}`);
-        if (!res.ok) throw new Error(`${res.status}`);
-        return res.json() as Promise<TripsResponse>;
-      };
-      let data = await fetchT(true);
-      if (data.trips.length === 0 && primaryCode) data = await fetchT(false);
-      const seen = new Set<string>();
-      const deduped = data.trips.filter(t => {
-        const k = `${t.flight_numbers}|${t.departs_at}`;
-        if (seen.has(k)) return false;
-        seen.add(k); return true;
-      });
-      const tripList = mockTrips ?? deduped;
-      if (tripList.length > 0) { setTrips(tripList); onBook(result, tripList[0]); }
-    } catch { /* ignore */ }
-    setBookLoading(false);
+    const tripList = mockTrips ?? (trips && trips.length > 0 ? trips : tripFromResult ? [tripFromResult] : null);
+    if (tripList && tripList.length > 0) { setTrips(tripList); onBook(result, tripList[0]); }
   };
 
   const firstTrip = trips?.[0];
@@ -341,10 +309,9 @@ export default function FlightCard({ result, mockTrips, onBook, isBestDeal }: Pr
           {onBook && (
             <button
               onClick={handleBook}
-              disabled={bookLoading}
-              className="w-full bg-[#3DB551] hover:bg-[#35A348] disabled:opacity-50 text-white font-hand font-bold text-lg py-2 rounded-xl transition"
+              className="w-full bg-[#3DB551] hover:bg-[#35A348] text-white font-hand font-bold text-lg py-2 rounded-xl transition"
             >
-              {bookLoading ? '...' : 'Book'}
+              Book
             </button>
           )}
         </div>
@@ -353,7 +320,7 @@ export default function FlightCard({ result, mockTrips, onBook, isBestDeal }: Pr
       {/* Expanded trip details */}
       {expanded && (
         <div className="border-t border-[#EEEEEE] bg-[#FAFAF8] px-6 py-5">
-          {tripsLoading && (
+          {false && (
             <div className="flex items-center gap-2 text-sm text-[#AAAAAA]">
               <span className="animate-spin w-4 h-4 border-2 border-[#CCCCCC] border-t-[#AAAAAA] rounded-full inline-block" />
               Loading itinerary...
