@@ -3,6 +3,7 @@ export type Page = 'Search' | 'AI Travel Agent' | 'My Dashboard' | 'Settings' | 
 interface Props {
   current: Page;
   onChange: (page: Page) => void;
+  isAdmin?: boolean;
 }
 
 function CompassIcon() {
@@ -51,9 +52,19 @@ const NAV_ITEMS: { page: Page; label: string; icon: React.ReactNode }[] = [
   { page: 'My Dashboard',     label: 'My account',       icon: <PersonIcon /> },
 ];
 
-export default function Nav({ current, onChange }: Props) {
+function ChartIcon() {
   return (
-    <nav className="w-full bg-[#EEEAE4] border-b border-[#D4D0CB] px-6">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <rect x="3" y="12" width="4" height="9" rx="1" />
+      <rect x="10" y="7" width="4" height="14" rx="1" />
+      <rect x="17" y="3" width="4" height="18" rx="1" />
+    </svg>
+  );
+}
+
+export default function Nav({ current, onChange, isAdmin }: Props) {
+  return (
+    <nav className={`w-full border-b px-6 ${isAdmin ? 'bg-[#1a1a2e] border-[#2d2d4e]' : 'bg-[#EEEAE4] border-[#D4D0CB]'}`}>
       <div className="max-w-5xl mx-auto flex items-center h-28 gap-4">
         {/* Logo */}
         <button
@@ -71,8 +82,8 @@ export default function Nav({ current, onChange }: Props) {
               onClick={() => onChange(item.page)}
               className={`flex flex-col items-center gap-0.5 py-1 transition ${
                 current === item.page
-                  ? 'text-[#1A1A1A]'
-                  : 'text-[#999999] hover:text-[#555555]'
+                  ? isAdmin ? 'text-[#a78bfa]' : 'text-[#1A1A1A]'
+                  : isAdmin ? 'text-[#6b7280] hover:text-[#9ca3af]' : 'text-[#999999] hover:text-[#555555]'
               }`}
             >
               {item.icon}
@@ -81,12 +92,25 @@ export default function Nav({ current, onChange }: Props) {
               </span>
             </button>
           ))}
+          {isAdmin && (
+            <button
+              onClick={() => onChange('Analytics')}
+              className={`flex flex-col items-center gap-0.5 py-1 transition ${
+                current === 'Analytics' ? 'text-[#a78bfa]' : 'text-[#6b7280] hover:text-[#9ca3af]'
+              }`}
+            >
+              <ChartIcon />
+              <span className={`text-xs whitespace-nowrap ${current === 'Analytics' ? 'font-semibold underline underline-offset-2' : ''}`}>
+                Analytics
+              </span>
+            </button>
+          )}
         </div>
 
         {/* Settings */}
         <button
           onClick={() => onChange('Settings')}
-          className="shrink-0 w-9 h-9 rounded-full border border-[#C8C4BE] flex items-center justify-center text-[#666666] hover:text-[#333333] hover:border-[#999999] transition"
+          className={`shrink-0 w-9 h-9 rounded-full border flex items-center justify-center transition ${isAdmin ? 'border-[#2d2d4e] text-[#6b7280] hover:text-[#9ca3af] hover:border-[#4b5563]' : 'border-[#C8C4BE] text-[#666666] hover:text-[#333333] hover:border-[#999999]'}`}
         >
           <GearIcon />
         </button>

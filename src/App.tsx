@@ -86,10 +86,10 @@ function trackBooking(result: FlightResult, trip: Trip) {
 
 type View = 'search' | 'results';
 
+const isAdmin = window.location.pathname === '/sami';
+
 export default function App() {
-  const [page, setPage] = useState<Page>(
-    window.location.pathname === '/sami' ? 'Analytics' : 'Search'
-  );
+  const [page, setPage] = useState<Page>(isAdmin ? 'Analytics' : 'Search');
   const [view, setView] = useState<View>('search');
   const [loading, setLoading] = useState(false);
   const [flexLoading, setFlexLoading] = useState(false);
@@ -233,8 +233,8 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#EEEAE4] flex flex-col">
-      <Nav current={page} onChange={setPage} />
+    <div className={`min-h-screen flex flex-col ${isAdmin ? 'bg-[#0f0f1a]' : 'bg-[#EEEAE4]'}`}>
+      <Nav current={page} onChange={setPage} isAdmin={isAdmin} />
       {renderPage()}
     </div>
   );
