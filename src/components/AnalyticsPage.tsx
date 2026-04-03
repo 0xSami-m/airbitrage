@@ -51,6 +51,27 @@ function fmtUSD(n: number) {
 
 const PASSWORD = 'Rthj9bd,x*5731';
 
+interface VaultProgram {
+  points: string;
+  cpp: string; // cents per point
+}
+
+const VAULT_PROGRAMS = [
+  { key: 'virgin',  label: 'Virgin Atlantic', color: '#E31837' },
+  { key: 'alaska',  label: 'Alaska Airlines',  color: '#0060A9' },
+  { key: 'aeroplan', label: 'Air Canada Aeroplan', color: '#D22630' },
+] as const;
+
+type VaultKey = typeof VAULT_PROGRAMS[number]['key'];
+
+function loadVaults(): Record<VaultKey, VaultProgram> {
+  try {
+    const raw = localStorage.getItem('flyai_vaults');
+    if (raw) return JSON.parse(raw);
+  } catch { /* ignore */ }
+  return { virgin: { points: '', cpp: '' }, alaska: { points: '', cpp: '' }, aeroplan: { points: '', cpp: '' } };
+}
+
 export default function AnalyticsPage() {
   const [authed, setAuthed]     = useState(() => sessionStorage.getItem('flyai_admin') === '1');
   const [pwInput, setPwInput]   = useState('');
@@ -59,8 +80,17 @@ export default function AnalyticsPage() {
   const [bookings, setBookings] = useState<BookingEvent[] | null>(null);
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState('');
-  const [tab, setTab]           = useState<'searches' | 'bookings'>('searches');
+  const [tab, setTab]           = useState<'searches' | 'bookings' | 'vaults'>('searches');
   const [filter, setFilter]     = useState<'all' | 'no_results'>('all');
+  const [vaults, setVaults]     = useState<Record<VaultKey, VaultProgram>>(loadVaults);
+
+  const updateVault = (key: VaultKey, field: keyof VaultProgram, value: string) => {
+    setVaults(prev => {
+      const next = { ...prev, [key]: { ...prev[key], [field]: value } };
+      localStorage.setItem('flyai_vaults', JSON.stringify(next));
+      return next;
+    });
+  };
 
   const login = () => {
     if (pwInput === PASSWORD) {
@@ -153,7 +183,7 @@ export default function AnalyticsPage() {
       <div className="flex items-center gap-4">
         <h2 className="text-2xl font-extrabold text-[#555555] tracking-tight">Analytics</h2>
         <div className="flex gap-2">
-          {(['searches', 'bookings'] as const).map(t => (
+          {(['searches', 'bookings', 'vaults'] as const).map(t => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -163,7 +193,7 @@ export default function AnalyticsPage() {
                   : 'border-[#D4D0CB] text-[#666666] hover:border-[#999999]'
               }`}
             >
-              {t} {t === 'searches' ? `(${total})` : `(${bookings?.length ?? 0})`}
+              {t === 'searches' ? `searches (${total})` : t === 'bookings' ? `bookings (${bookings?.length ?? 0})` : 'vaults'}
             </button>
           ))}
         </div>
@@ -314,6 +344,55 @@ export default function AnalyticsPage() {
               </div>
             ))
           )}
+        </div>
+      )}
+      {/* ── Vaults tab ── */}
+      {tab === 'vaults' && (
+        <div className="flex flex-col gap-5">
+          {VAULT_PROGRAMS.map(prog => {
+            const v = vaults[prog.key];
+            const points = parseFloat(v.points.replace(/,/g, '')) || 0;
+            const cpp    = parseFloat(v.cpp) || 0;
+            const value  = points * cpp / 100;
+            return (
+              <div key={prog.key} className="bg-white rounded-2xl border border-[#dddddd] shadow-sm overflow-hidden">
+                <div className="px-6 py-3 flex items-center gap-3" style={{ backgroundColor: prog.color }}>
+                  <span className="text-white font-bold text-sm">{prog.label}</span>
+                </div>
+                <div className="px-6 py-5 grid grid-cols-1 md:grid-cols-3 gap-5">
+                  {/* Remaining points */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs text-[#aaaaaa] font-medium uppercase tracking-wide">Remaining Points</label>
+                    <input
+                      type="text"
+                      value={v.points}
+                      onChange={e => updateVault(prog.key, 'points', e.target.value)}
+                      placeholder="e.g. 150,000"
+                      className="px-4 py-2.5 border border-[#D4D0CB] rounded-xl text-sm text-[#333333] focus:outline-none focus:border-[#888888] transition"
+                    />
+                  </div>
+                  {/* Cents per point */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs text-[#aaaaaa] font-medium uppercase tracking-wide">Price per Point (¢)</label>
+                    <input
+                      type="text"
+                      value={v.cpp}
+                      onChange={e => updateVault(prog.key, 'cpp', e.target.value)}
+                      placeholder="e.g. 1.5"
+                      className="px-4 py-2.5 border border-[#D4D0CB] rounded-xl text-sm text-[#333333] focus:outline-none focus:border-[#888888] transition"
+                    />
+                  </div>
+                  {/* Value */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs text-[#aaaaaa] font-medium uppercase tracking-wide">Value of Points</label>
+                    <div className="px-4 py-2.5 border border-[#eeeeee] rounded-xl bg-[#fafafa] text-sm font-bold" style={{ color: value > 0 ? prog.color : '#bbbbbb' }}>
+                      {value > 0 ? `$${value.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : '—'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
