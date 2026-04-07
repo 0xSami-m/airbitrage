@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { geoNaturalEarth1, geoPath, geoGraticule } from 'd3-geo';
 import { feature } from 'topojson-client';
+import type { AuthUser } from './AuthPage';
 
 const GEO_URL = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json';
 const WIDTH = 960;
@@ -238,36 +239,28 @@ const FLIGHTS: LoggedFlight[] = [
   { date: '2026-04-10', origin_code: 'BOS', origin_city: 'Boston', dest_code: 'ZRH', dest_city: 'Zurich', cabin: 'business' },
 ];
 
+// ── Per-user flight logs ──────────────────────────────────────────────────────
+const USER_FLIGHTS: Record<string, LoggedFlight[]> = {
+  'samimuduroglu1@gmail.com': FLIGHTS,
+  'imrantrehan@gmail.com': [
+    { date: '2026-04-07', airline: 'American Airlines', origin_code: 'JFK', origin_city: 'New York', dest_code: 'LAX', dest_city: 'Los Angeles', plane: 'Airbus A321T', distance_mi: 2475, duration_min: 330, cabin: 'business', arb_price_usd: 858, cash_fare_usd: 1716 },
+  ],
+};
+
 // ── Computed stats ───────────────────────────────────────────────────────────
-function totalMilesFlown() {
-  return FLIGHTS.reduce((s, f) => s + (f.distance_mi ?? 0), 0);
+function totalMilesFlown(flights: LoggedFlight[]) {
+  return flights.reduce((s, f) => s + (f.distance_mi ?? 0), 0);
 }
 
-function totalMoneySaved() {
-  return FLIGHTS.reduce((s, f) =>
+function totalMoneySaved(flights: LoggedFlight[]) {
+  return flights.reduce((s, f) =>
     f.cash_fare_usd != null && f.arb_price_usd != null
       ? s + (f.cash_fare_usd - f.arb_price_usd)
       : s
   , 0);
 }
 
-// Average cpp (cents per point) by cabin: arb_price_usd / miles * 100
-function avgCpp(cabin: LoggedFlight['cabin'], useStandard = false) {
-  const flights = FLIGHTS.filter(f => f.cabin === cabin && f.miles && f.miles > 0 && f.arb_price_usd != null);
-  if (flights.length === 0) return null;
-  const avg = flights.reduce((s, f) => {
-    const price = useStandard ? (f.arb_price_standard_usd ?? f.arb_price_usd!) : f.arb_price_usd!;
-    return s + price / f.miles! * 100;
-  }, 0) / flights.length;
-  return avg;
-}
-
 // ── Helpers ──────────────────────────────────────────────────────────────────
-function fmtDuration(min: number) {
-  const h = Math.floor(min / 60), m = min % 60;
-  return m > 0 ? `${h}h ${m}m` : `${h}h`;
-}
-
 function fmtUSD(n: number) {
   return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
@@ -276,43 +269,20 @@ function fmtDate(d: string) {
   return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-// ── Map types ────────────────────────────────────────────────────────────────
-interface FlightRoute {
-  id: number;
-  from: string;
-  to: string;
-}
-
-let nextId = 1;
-
 // Compute great-circle arc as SVG path string via d3-geo
 function arcPath(from: [number, number], to: [number, number]): string {
   const line: GeoJSON.LineString = { type: 'LineString', coordinates: [from, to] };
   return pathGen(line) ?? '';
 }
 
-export default function DashboardPage() {
-  const [routes, setRoutes] = useState<FlightRoute[]>(() => {
-    try {
-      const saved = localStorage.getItem('map-routes');
-      if (saved) {
-        const parsed: FlightRoute[] = JSON.parse(saved);
-        if (parsed.length > 0) nextId = Math.max(...parsed.map(r => r.id)) + 1;
-        return parsed;
-      }
-    } catch { /* ignore */ }
-    return [];
-  });
-  const [fromInput, setFromInput] = useState('');
-  const [toInput, setToInput] = useState('');
-  const [error, setError] = useState('');
+interface DashboardProps {
+  user?: AuthUser;
+  onLogout?: () => void;
+}
+
+export default function DashboardPage({ user, onLogout }: DashboardProps) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [countries, setCountries] = useState<any[]>([]);
-  const toRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    localStorage.setItem('map-routes', JSON.stringify(routes));
-  }, [routes]);
 
   useEffect(() => {
     fetch(GEO_URL)
@@ -326,36 +296,20 @@ export default function DashboardPage() {
       .catch(() => { /* map renders blank if CDN unreachable */ });
   }, []);
 
-  const addRoute = () => {
-    const from = fromInput.trim().toUpperCase();
-    const to = toInput.trim().toUpperCase();
-    setError('');
-    if (!from || !to) { setError('Enter both airport codes.'); return; }
-    if (from === to) { setError('Origin and destination must differ.'); return; }
-    if (!AIRPORT_COORDS[from]) { setError(`Unknown airport: ${from}`); return; }
-    if (!AIRPORT_COORDS[to]) { setError(`Unknown airport: ${to}`); return; }
-    setRoutes(prev => [...prev, { id: nextId++, from, to }]);
-    setFromInput('');
-    setToInput('');
-  };
+  const myFlights = USER_FLIGHTS[user?.email?.toLowerCase() ?? ''] ?? [];
 
-  const removeRoute = (id: number) => setRoutes(prev => prev.filter(r => r.id !== id));
-
-  // Derive unique arcs from FLIGHTS (only those with known coords)
+  // Derive unique arcs from flight log (only those with known coords)
   const flightArcs: { from: string; to: string }[] = [];
   {
     const seen = new Set<string>();
-    for (const f of FLIGHTS) {
+    for (const f of myFlights) {
       if (!AIRPORT_COORDS[f.origin_code] || !AIRPORT_COORDS[f.dest_code]) continue;
       const key = `${f.origin_code}|${f.dest_code}`;
       if (!seen.has(key)) { seen.add(key); flightArcs.push({ from: f.origin_code, to: f.dest_code }); }
     }
   }
 
-  const plotted = new Set([
-    ...flightArcs.flatMap(r => [r.from, r.to]),
-    ...routes.flatMap(r => [r.from, r.to]),
-  ]);
+  const plotted = new Set(flightArcs.flatMap(r => [r.from, r.to]));
 
   // Graticule (grid lines)
   const graticule = geoGraticule()();
@@ -366,63 +320,48 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-6 px-6 py-10 w-full max-w-5xl mx-auto">
-      <div>
-        <h2 className="text-2xl font-extrabold text-[#555555] tracking-tight">My Flight Map</h2>
-        <p className="text-sm text-[#aaaaaa] mt-1">Plot routes by airport code (e.g. JFK → LHR)</p>
-      </div>
-
-      {/* Input row */}
-      <div className="flex items-start gap-3 flex-wrap">
-        <div className="flex items-center gap-2">
-          <input
-            value={fromInput}
-            onChange={e => setFromInput(e.target.value.toUpperCase())}
-            onKeyDown={e => { if (e.key === 'Enter') toRef.current?.focus(); }}
-            placeholder="JFK"
-            maxLength={3}
-            className="w-20 px-3 py-2 rounded-lg border border-[#dddddd] text-sm font-mono text-[#444444] bg-white focus:outline-none focus:border-[#aaaaaa] uppercase"
-          />
-          <span className="text-[#cccccc]">→</span>
-          <input
-            ref={toRef}
-            value={toInput}
-            onChange={e => setToInput(e.target.value.toUpperCase())}
-            onKeyDown={e => { if (e.key === 'Enter') addRoute(); }}
-            placeholder="LHR"
-            maxLength={3}
-            className="w-20 px-3 py-2 rounded-lg border border-[#dddddd] text-sm font-mono text-[#444444] bg-white focus:outline-none focus:border-[#aaaaaa] uppercase"
-          />
-        </div>
-        <button
-          onClick={addRoute}
-          className="px-4 py-2 bg-[#555555] hover:bg-[#444444] text-white text-sm font-semibold rounded-lg transition"
-        >
-          Add
-        </button>
-        {error && <span className="text-xs text-[#cc6666] self-center">{error}</span>}
-      </div>
-
-      {/* Route chips */}
-      {routes.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {routes.map(r => (
-            <div
-              key={r.id}
-              className="flex items-center gap-1.5 bg-white border border-[#dddddd] rounded-full px-3 py-1 text-xs font-mono text-[#555555]"
+      {user && (
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-extrabold text-[#1A1A1A] tracking-tight">
+              Welcome back, {user.firstName}.
+            </h2>
+            <p className="text-sm text-[#999999] mt-0.5">{user.email}</p>
+          </div>
+          {onLogout && (
+            <button
+              onClick={onLogout}
+              className="px-4 py-2 text-xs font-semibold text-[#999999] hover:text-[#555555] border border-[#D4D0CB] hover:border-[#999999] rounded-xl transition"
             >
-              {r.from} → {r.to}
-              <button
-                onClick={() => removeRoute(r.id)}
-                className="text-[#bbbbbb] hover:text-[#888888] ml-1 leading-none"
-              >
-                ×
-              </button>
-            </div>
-          ))}
+              Log out
+            </button>
+          )}
         </div>
       )}
+      {/* ── Stats ── */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="bg-white rounded-2xl border border-[#dddddd] shadow-sm px-6 py-5">
+          <div className="text-xs text-[#aaaaaa] font-medium uppercase tracking-wide mb-1">Miles Flown</div>
+          <div className="text-3xl font-extrabold text-[#444444]">
+            {totalMilesFlown(myFlights) > 0 ? totalMilesFlown(myFlights).toLocaleString() : '—'}
+          </div>
+        </div>
+        <div className="bg-white rounded-2xl border border-[#dddddd] shadow-sm px-6 py-5">
+          <div className="text-xs text-[#aaaaaa] font-medium uppercase tracking-wide mb-1">Money Saved</div>
+          <div className="text-3xl font-extrabold text-[#4a7a4a]">
+            {totalMoneySaved(myFlights) > 0 ? fmtUSD(totalMoneySaved(myFlights)) : '—'}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Upcoming trips ── */}
+      <div className="bg-white rounded-2xl border border-[#dddddd] shadow-sm px-6 py-5">
+        <div className="text-sm font-semibold text-[#555555] mb-3">Upcoming Trips</div>
+        <div className="text-sm text-[#bbbbbb]">No upcoming trips.</div>
+      </div>
 
       {/* Map */}
+      <h2 className="text-2xl font-extrabold text-[#555555] tracking-tight">Flight Log</h2>
       <div className="bg-white rounded-2xl border border-[#dddddd] overflow-hidden shadow-sm">
         <svg
           viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
@@ -458,20 +397,6 @@ export default function DashboardPage() {
               opacity={0.8}
             />
           ))}
-          {/* Manually added arcs */}
-          {routes.map(r => (
-            <path
-              key={r.id}
-              d={arcPath(AIRPORT_COORDS[r.from], AIRPORT_COORDS[r.to])}
-              fill="none"
-              stroke="#888888"
-              strokeWidth={1.5}
-              strokeLinecap="round"
-              strokeDasharray="3 3"
-              opacity={0.6}
-            />
-          ))}
-
           {/* Airport dots + labels (nudged to avoid overlap) */}
           {(() => {
             const aps = [...plotted].flatMap(code => {
@@ -558,49 +483,11 @@ export default function DashboardPage() {
           })()}
         </svg>
 
-        {flightArcs.length === 0 && routes.length === 0 && (
+        {flightArcs.length === 0 && (
           <div className="text-center text-sm text-[#bbbbbb] pb-6 -mt-2">
-            Add a route above to see it on the map
+            No flights logged yet.
           </div>
         )}
-      </div>
-
-      {/* ── Stats ── */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="bg-white rounded-2xl border border-[#dddddd] shadow-sm px-6 py-5">
-          <div className="text-xs text-[#aaaaaa] font-medium uppercase tracking-wide mb-1">Miles Flown</div>
-          <div className="text-3xl font-extrabold text-[#444444]">
-            {totalMilesFlown() > 0 ? totalMilesFlown().toLocaleString() : '—'}
-          </div>
-          {totalMilesFlown() > 0 && <div className="text-xs text-[#aaaaaa] mt-1">statute miles</div>}
-        </div>
-        <div className="bg-white rounded-2xl border border-[#dddddd] shadow-sm px-6 py-5">
-          <div className="text-xs text-[#aaaaaa] font-medium uppercase tracking-wide mb-1">Money Saved</div>
-          <div className="text-3xl font-extrabold text-[#4a7a4a]">
-            {totalMoneySaved() > 0 ? fmtUSD(totalMoneySaved()) : '—'}
-          </div>
-          {totalMoneySaved() > 0 && <div className="text-xs text-[#aaaaaa] mt-1">vs. cash fare</div>}
-        </div>
-      </div>
-
-      {/* ── Avg cpp ── */}
-      <div className="bg-white rounded-2xl border border-[#dddddd] shadow-sm px-6 py-5">
-        <div className="text-xs text-[#aaaaaa] font-medium uppercase tracking-wide mb-4">Avg. Cost Per Point (¢)</div>
-        <div className="grid grid-cols-4 gap-4">
-          {([
-            ['Economy', avgCpp('economy'), null],
-            ['Business (arb)', avgCpp('business', false), null],
-            ['Business (std)', avgCpp('business', true), null],
-            ['First', avgCpp('first'), null],
-          ] as [string, number | null, null][]).map(([label, val]) => (
-            <div key={label}>
-              <div className="text-xs text-[#aaaaaa] mb-1">{label}</div>
-              <div className="text-2xl font-bold text-[#555555]">
-                {val != null ? val.toFixed(2) + '¢' : '—'}
-              </div>
-            </div>
-          ))}
-        </div>
       </div>
 
       {/* ── Flight log ── */}
@@ -608,7 +495,7 @@ export default function DashboardPage() {
         <div className="px-6 py-4 border-b border-[#eeeeee]">
           <div className="text-sm font-semibold text-[#555555]">Flight Log</div>
         </div>
-        {FLIGHTS.length === 0 ? (
+        {myFlights.length === 0 ? (
           <div className="px-6 py-8 text-sm text-[#bbbbbb] text-center">No flights logged yet.</div>
         ) : (
           <div className="overflow-x-auto">
@@ -619,15 +506,14 @@ export default function DashboardPage() {
                   <th className="text-left px-4 py-3 whitespace-nowrap">Airline</th>
                   <th className="text-left px-4 py-3 whitespace-nowrap">From</th>
                   <th className="text-left px-4 py-3 whitespace-nowrap">To</th>
-                  <th className="text-left px-4 py-3 whitespace-nowrap">Plane</th>
+                  <th className="text-left px-4 py-3 whitespace-nowrap">Aircraft</th>
                   <th className="text-right px-4 py-3 whitespace-nowrap">Distance</th>
-                  <th className="text-right px-4 py-3 whitespace-nowrap">Duration</th>
                   <th className="text-right px-4 py-3 whitespace-nowrap">Arb Price</th>
                   <th className="text-right px-4 py-3 whitespace-nowrap">Cash Fare</th>
                 </tr>
               </thead>
               <tbody>
-                {[...FLIGHTS].reverse().map((f, i) => (
+                {[...myFlights].reverse().map((f, i) => (
                   <tr key={i} className="border-b border-[#f5f5f5] hover:bg-[#fafafa] transition">
                     <td className="px-4 py-3 text-[#777777] whitespace-nowrap">{fmtDate(f.date)}</td>
                     <td className="px-4 py-3 text-[#555555] font-medium whitespace-nowrap">{f.airline ?? '—'}</td>
@@ -639,7 +525,6 @@ export default function DashboardPage() {
                     </td>
                     <td className="px-4 py-3 text-[#777777] whitespace-nowrap">{f.plane ?? '—'}</td>
                     <td className="px-4 py-3 text-right text-[#777777] whitespace-nowrap">{f.distance_mi != null ? `${f.distance_mi.toLocaleString()} mi` : '—'}</td>
-                    <td className="px-4 py-3 text-right text-[#777777] whitespace-nowrap">{f.duration_min != null ? fmtDuration(f.duration_min) : '—'}</td>
                     <td className="px-4 py-3 text-right font-semibold text-[#4a7a4a] whitespace-nowrap">{f.arb_price_usd != null ? fmtUSD(f.arb_price_usd) : '—'}</td>
                     <td className="px-4 py-3 text-right text-[#bbbbbb] line-through whitespace-nowrap">{f.cash_fare_usd != null ? fmtUSD(f.cash_fare_usd) : '—'}</td>
                   </tr>

@@ -9,6 +9,7 @@ interface Props {
   searchParams: SearchParams;
   flexLoading?: boolean;
   flexDateInfo?: FlexDateInfo | null;
+  flexResults?: FlightResult[];
   cabinFallbackInfo?: CabinFallbackInfo | null;
   onBack: () => void;
   onBook: (result: FlightResult, trip: Trip) => void;
@@ -33,6 +34,11 @@ const AIRPORT_CITIES: Record<string, string> = {
 };
 
 function cityFor(code: string) {
+  if (code.includes('|')) {
+    // Multi-airport: use the city of the first code
+    const first = code.split('|')[0];
+    return AIRPORT_CITIES[first] ?? first;
+  }
   return AIRPORT_CITIES[code] ? `${AIRPORT_CITIES[code]} ${code}` : code;
 }
 
@@ -50,15 +56,15 @@ function shiftDate(date: string, days: number): string {
   return d.toISOString().split('T')[0];
 }
 
-export default function ResultsPanel({ results, summary, error, searchParams, flexLoading, flexDateInfo, cabinFallbackInfo, onBack, onBook, onDateChange }: Props) {
-  const [sort, setSort] = useState<SortKey>('value');
+export default function ResultsPanel({ results, error, searchParams, flexLoading, flexDateInfo, flexResults = [], cabinFallbackInfo, onBack, onBook, onDateChange }: Props) {
+  const [sort, setSort] = useState<SortKey>('price');
   const [directOnly, setDirectOnly] = useState(false);
 
   const filtered = results
     .filter(r => !directOnly || r.direct)
     .sort((a, b) => {
       if (sort === 'value') return (b.value_ratio ?? 0) - (a.value_ratio ?? 0);
-      return a.arb_price_usd - b.arb_price_usd;
+      return (a.arb_price_promo_usd ?? a.arb_price_usd) - (b.arb_price_promo_usd ?? b.arb_price_usd);
     });
 
   const dateLabel = new Date(searchParams.date + 'T00:00:00').toLocaleDateString('en-US', {
@@ -164,17 +170,19 @@ export default function ResultsPanel({ results, summary, error, searchParams, fl
         </div>
       )}
 
-      {/* Summary */}
-      {summary && !error && (
-        <div className="bg-white border border-[#D4D0CB] rounded-2xl px-5 py-3 text-[#777777] text-sm">
-          {summary}
+
+      {/* No results on exact date */}
+      {!error && filtered.length === 0 && !flexLoading && flexResults.length === 0 && (
+        <div className="text-center text-[#BBBBBB] py-16 font-hand text-xl">
+          No flights found.
         </div>
       )}
 
-      {/* No results */}
-      {!error && filtered.length === 0 && !flexLoading && (
-        <div className="text-center text-[#BBBBBB] py-16 font-hand text-xl">
-          No flights found.
+      {/* No exact results but flex found something */}
+      {!error && filtered.length === 0 && flexResults.length > 0 && (
+        <div className="rounded-2xl px-5 py-3 text-sm flex items-start gap-2 border bg-[#FFF8F0] border-[#F0D9B5] text-[#8B6914]">
+          <span className="mt-0.5 shrink-0">📅</span>
+          <span>No flights found for your exact date — showing nearby dates below.</span>
         </div>
       )}
 
@@ -192,13 +200,61 @@ export default function ResultsPanel({ results, summary, error, searchParams, fl
         </div>
       )}
 
-      {/* Flex loading */}
+      {/* Flex loading spinner */}
       {flexLoading && (
         <div className="flex items-center gap-3 text-sm text-[#AAAAAA] py-2 px-1">
           <span className="animate-spin inline-block w-4 h-4 border-2 border-[#CCCCCC] border-t-[#AAAAAA] rounded-full shrink-0" />
-          Looking for better deals on nearby dates…
+          Looking for deals on nearby dates…
         </div>
       )}
+
+      {/* Flex results — nearby dates */}
+      {!error && flexResults.length > 0 && (() => {
+        const price = (r: FlightResult) => r.arb_price_promo_usd ?? r.arb_price_usd;
+        // Only show a flex date if its cheapest option is >25% cheaper than the main cheapest
+        const mainCheapest = filtered.length > 0
+          ? Math.min(...filtered.map(price))
+          : Infinity;
+        const threshold = mainCheapest * 0.75;
+
+        const sorted = [...flexResults].sort((a, b) =>
+          a.date !== b.date
+            ? a.date.localeCompare(b.date)
+            : price(a) - price(b)
+        );
+        // Group by date, filter out dates that aren't meaningfully cheaper
+        const byDate = sorted.reduce<Record<string, FlightResult[]>>((acc, r) => {
+          (acc[r.date] = acc[r.date] ?? []).push(r);
+          return acc;
+        }, {});
+        const qualifyingDates = Object.entries(byDate).filter(([, dateResults]) =>
+          Math.min(...dateResults.map(price)) < threshold
+        );
+        return (
+          qualifyingDates.length === 0 ? null : (
+          <div className="flex flex-col gap-4">
+            {filtered.length > 0 && (
+              <div className="text-sm font-semibold text-[#888888] pt-2">Significantly cheaper on nearby dates</div>
+            )}
+            {qualifyingDates.map(([date, dateResults]) => (
+              <div key={date} className="flex flex-col gap-2">
+                <div className="text-xs font-semibold text-[#AAAAAA] uppercase tracking-wide px-1">
+                  {new Date(date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                </div>
+                {dateResults.map((r, i) => (
+                  <FlightCard
+                    key={`flex-${r.program}-${date}-${i}`}
+                    result={r}
+                    onBook={onBook}
+                    isBestDeal={false}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
+          )
+        );
+      })()}
     </div>
   );
 }
